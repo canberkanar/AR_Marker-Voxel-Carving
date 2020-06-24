@@ -15,16 +15,21 @@ int main(int argc, char** argv) {
 
 
 	try {
+		if(argc < 2) {
+			std::cout<< "Usage: ./" << argv[0] << " [Camera Num]\n";
+			return 1;
+		}
+
+		int camNum = atoi(argv[1]);
 
 		aruco::MarkerDetector MDetector;
-
 		vector<aruco::Marker> Markers;
-
 		// Read the web cam
 
 		Mat frame;
 		VideoCapture cap;
-		cap.open(1, cv::CAP_DSHOW);
+		if(!cap.open(camNum, cv::CAP_ANY))
+			cout << "Could not open camera!\n";
 		while (cap.isOpened() && cap.read(frame))
 		{
 			// Detect markers in frame

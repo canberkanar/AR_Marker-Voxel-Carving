@@ -16,14 +16,18 @@ find_package(OpenCV REQUIRED)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-# Adding local ARUco Library
-
-include_directories(C:/Users/mayay/source/repos/3d-scanning/libs/aruco-lib/include/)
-
-link_directories(C:/Users/mayay/source/repos/3d-scanning/libs/aruco-lib/lib/)
-
-
 
 add_executable(helloAR ARVoxelCarving.cpp)
+# Adding local ARUco Library
+IF (WIN32)
+    include_directories(C:/Users/mayay/source/repos/3d-scanning/libs/aruco-lib/include/)
+    link_directories(C:/Users/mayay/source/repos/3d-scanning/libs/aruco-lib/lib/)
+    target_link_libraries(helloAR ${OpenCV_LIBS} aruco3112)
+ENDIF()
 
-target_link_libraries(helloAR ${OpenCV_LIBS} aruco3112)
+IF(UNIX)
+    target_link_libraries(helloAR ${OpenCV_LIBS} aruco)
+ENDIF()
+
+
+
