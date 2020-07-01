@@ -16,8 +16,10 @@ find_package(OpenCV REQUIRED)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
+add_executable(marker_recognition marker_recognition.cpp)
 
-add_executable(helloAR ARVoxelCarving.cpp)
+add_executable(background_subtraction backgroud_subtraction.cpp)
+
 # Adding local ARUco Library
 IF (WIN32)
     include_directories(C:/Users/mayay/source/repos/3d-scanning/libs/aruco-lib/include/)
@@ -26,7 +28,8 @@ IF (WIN32)
 ENDIF()
 
 IF(UNIX)
-    target_link_libraries(helloAR ${OpenCV_LIBS} aruco)
+    target_link_libraries(marker_recognition ${OpenCV_LIBS} aruco)
+    target_link_libraries(background_subtraction ${OpenCV_LIBS})
 ENDIF()
 
 
