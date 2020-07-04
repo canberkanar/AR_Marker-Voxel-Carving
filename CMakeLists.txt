@@ -28,7 +28,6 @@ ENDIF()
 IF(UNIX)
     target_link_libraries(marker_recognition ${OpenCV_LIBS} aruco)
     target_link_libraries(background_subtraction ${OpenCV_LIBS})
-    target_link_libraries(camera_calibration ${OpenCV_LIBS})
     target_link_libraries(pose_estimation ${OpenCV_LIBS})
 ENDIF()
 
