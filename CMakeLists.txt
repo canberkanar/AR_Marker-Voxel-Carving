@@ -15,7 +15,6 @@ link_directories(${OpenCV_LIBRARY_DIRS})
 add_executable(marker_recognition marker_recognition.cpp)
 add_executable(background_subtraction backgroud_subtraction.cpp)
 
-add_executable(camera_calibration pose_estimation/camera_calibration.cpp)
 add_executable(pose_estimation pose_estimation/pose_estimation.cpp)
 
 # Adding local ARUco Library
