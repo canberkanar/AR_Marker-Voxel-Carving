@@ -3,22 +3,20 @@ cmake_minimum_required(VERSION 2.8)
 project(helloAR)
 
 
-
 SET(CMAKE_MODULE_PATH ${CMAKE_INSTALL_PREFIX}/lib/cmake/ )
-
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 
-
 # Required packages
-
 find_package(OpenCV REQUIRED)
 
-include_directories( ${OpenCV_INCLUDE_DIRS} )
+link_directories(${OpenCV_LIBRARY_DIRS})
 
 add_executable(marker_recognition marker_recognition.cpp)
-
 add_executable(background_subtraction backgroud_subtraction.cpp)
+
+add_executable(camera_calibration pose_estimation/camera_calibration.cpp)
+add_executable(pose_estimation pose_estimation/pose_estimation.cpp)
 
 # Adding local ARUco Library
 IF (WIN32)
@@ -30,7 +28,7 @@ ENDIF()
 IF(UNIX)
     target_link_libraries(marker_recognition ${OpenCV_LIBS} aruco)
     target_link_libraries(background_subtraction ${OpenCV_LIBS})
+    target_link_libraries(camera_calibration ${OpenCV_LIBS})
+    target_link_libraries(pose_estimation ${OpenCV_LIBS})
 ENDIF()
-
-
 
