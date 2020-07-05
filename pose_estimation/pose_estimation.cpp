@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 
 
     // camera parameters are read from somewhere
-    readCameraParameters("/home/canberk/Downloads/3d/AR_Marker-Voxel-Carving/pose_estimation/calibration_params.yml", cameraMatrix, distCoeffs);
+    readCameraParameters("/home/canberk/Downloads/3d/AR_Marker-Voxel-Carving/camera_calibration/out_camera_data.xml", cameraMatrix, distCoeffs);
 
     std::cout << "camera_matrix\n" << cameraMatrix << std::endl;
     std::cout << "\ndist coeffs\n" << distCoeffs << std::endl;
