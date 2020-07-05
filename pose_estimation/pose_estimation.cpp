@@ -24,7 +24,7 @@ static bool readCameraParameters(string filename, Mat &camMatrix, Mat &distCoeff
 int main(int argc, char** argv) {
 
     cv::VideoCapture inputVideo;
-    inputVideo.open(1);
+    inputVideo.open(2);
     cv::Mat cameraMatrix, distCoeffs;
 
 
