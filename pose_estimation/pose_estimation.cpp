@@ -6,7 +6,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
-#include <opencv2/aruco.hpp>
+//#include <opencv2/aruco.hpp>
 
 
 using namespace cv;
@@ -27,30 +27,38 @@ int main(int argc, char** argv) {
     inputVideo.open(2);
     cv::Mat cameraMatrix, distCoeffs;
 
-
     // camera parameters are read from somewhere
-    readCameraParameters("/home/canberk/Downloads/3d/AR_Marker-Voxel-Carving/camera_calibration/out_camera_data.xml", cameraMatrix, distCoeffs);
+    readCameraParameters("C:/Users/mayay/source/repos/ARVoxelCarving/camera_calibration/out_camera_data.xml", cameraMatrix, distCoeffs);
 
     std::cout << "camera_matrix\n" << cameraMatrix << std::endl;
     std::cout << "\ndist coeffs\n" << distCoeffs << std::endl;
 
-    cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
     while (inputVideo.grab()) {
         cv::Mat image, imageCopy;
         inputVideo.retrieve(image);
         image.copyTo(imageCopy);
         std::vector<int> ids;
         std::vector<std::vector<cv::Point2f>> corners;
-        cv::aruco::detectMarkers(image, dictionary, corners, ids);
+		aruco::CameraParameters camera;
+		camera.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/camera_calibration/out_camera_data.xml");
+		aruco::MarkerDetector Detector;
+		
+        //cv::aruco::detectMarkers(image, dictionary, corners, ids);
         // if at least one marker detected
-        if (ids.size() > 0) {
-            cv::aruco::drawDetectedMarkers(imageCopy, corners, ids);
-            std::vector<cv::Vec3d> rvecs, tvecs;
-            cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-            // draw axis for each marker
-            for(int i=0; i<ids.size(); i++)
-                cv::aruco::drawAxis(imageCopy, cameraMatrix, distCoeffs, rvecs[i], tvecs[i], 0.1);
-        }
+        //if (ids.size() > 0) {
+        //    cv::aruco::drawDetectedMarkers(imageCopy, corners, ids);
+        //    std::vector<cv::Vec3d> rvecs, tvecs;
+        //    cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
+        //    // draw axis for each marker
+        //    for(int i=0; i<ids.size(); i++)
+        //        cv::aruco::drawAxis(imageCopy, cameraMatrix, distCoeffs, rvecs[i], tvecs[i], 0.1);
+        //}
+		Detector.setDictionary("ARUCO");
+		auto markers = Detector.detect(imageCopy, camera, 0.05);
+		for (auto m : markers) {
+			aruco::CvDrawingUtils::draw3dAxis(imageCopy, m, camera);
+			cout << m.Rvec << " " << m.Tvec << endl;
+		}
         cv::imshow("out", imageCopy);
         char key = (char) cv::waitKey(100);
         if (key == 27)
