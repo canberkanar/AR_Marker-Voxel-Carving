@@ -9,17 +9,19 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 
+#include "PointsObjectCoord.h"
+
+//Put in "Line;" to print the program line number
+#define LINE std::cout<<__LINE__ << "\n"
 
 int
 main(int argc, char** argv)
 {
-
-
 	try
 	{
 		if (argc < 2)
 		{
-			std::cout << "Usage: ./" << argv[0] << " [Camera Num] [Optional: Camera Config]\n";
+			std::cout << "Usage: ./" << argv[0] << " [Camera Num] [Optional: Camera Parameters XML]\n";
 			return 1;
 		}
 
@@ -49,13 +51,11 @@ main(int argc, char** argv)
 		while (cap.isOpened() && cap.read(frame))
 		{
 			// Detect markers in frame
-
 			std::vector<int> ids;
 			std::vector<std::vector<cv::Point2f> > corners;
 			cv::aruco::detectMarkers(frame, dictionary, corners, ids);
 
 			// if at least one marker detected
-
 			if (!ids.empty())
 			{
 				if (argc == 3)
@@ -64,13 +64,41 @@ main(int argc, char** argv)
 					camera.readFromXMLFile(argv[2]);
 					cv::Mat cameraMatrix = camera.CameraMatrix;
 					cv::Mat distCoeffs = camera.Distorsion;
-					std::vector<cv::Vec3d> rvecs, tvecs;
-					cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-					for (int i = 0; i < rvecs.size(); ++i) {
-						auto rvec = rvecs[i];
-						auto tvec = tvecs[i];
-						cv::aruco::drawAxis(frame, cameraMatrix, distCoeffs, rvec, tvec, 0.1);
+
+					//Uncomment to see the 3d orientations of the arUco markers
+//					std::vector<cv::Vec3d> rvecs, tvecs;
+//					cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
+//					for (int i = 0; i < rvecs.size(); ++i)
+//					{
+//						auto rvec = rvecs[i];
+//						auto tvec = tvecs[i];
+//						cv::aruco::drawAxis(frame, cameraMatrix, distCoeffs, rvec, tvec, 0.1);
+//					}
+
+					//Perform PNP
+					std::vector<cv::Point2d> imagePoints;
+					std::vector<cv::Point3d> objectPoints;
+					for (int& id : ids)
+					{
+						for (unsigned x = 0; x < 4; x++)
+						{
+							objectPoints.push_back(objectCoordMap[id][x]);
+						}
 					}
+					for (unsigned idx = 0; idx < ids.size(); idx++)
+					{
+						for (unsigned x = 0; x < 4; x++)
+						{
+							imagePoints.push_back(corners[idx][x]);
+						}
+					}
+
+					cv::Mat cameraRVec, cameraTVec;
+					cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
+
+					std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
+					std::cout << "Camera Translation:\n" << cameraTVec << "\n";
+
 				}
 				cv::aruco::drawDetectedMarkers(frame, corners, ids);
 			}
@@ -82,9 +110,7 @@ main(int argc, char** argv)
 	}
 	catch (std::exception& ex)
 	{
-
 		std::cout << "Exception :" << ex.what() << std::endl;
-
 	}
 
 }
