@@ -5,12 +5,14 @@
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
+#include <Windows.h>
 using namespace cv;
 using namespace std;
 const char* params
 		= "{ help h         |           | Print usage }"
 		  "{ input          | vtest.avi | Path to a video or a sequence of image }"
 		  "{ algo           | MOG2      | Background subtraction method (KNN, MOG2) }";
+
 int main(int argc, char* argv[])
 {
 
@@ -39,7 +41,9 @@ int main(int argc, char* argv[])
 	Mat frame, fgMask;
 	if(!cap.open(camNum, cv::CAP_ANY))
 		cout << "Could not open camera!\n";
-	while (cap.isOpened() && cap.read(frame)) {
+	double startTime = GetTickCount();
+	double currentTime = GetTickCount() - startTime;
+	while ((GetTickCount() - startTime)/1000<5 && cap.isOpened() && cap.read(frame)) {
 		//update the background model
 		pBackSub->apply(frame, fgMask);
 		//get the frame number and write it on the current frame
@@ -55,5 +59,9 @@ int main(int argc, char* argv[])
 		imshow("FG Mask", fgMask);
 		if (waitKey(10) == 27) break;
 	}
+	std::cout << "Mask is: ";
+	std::cout << fgMask;
+	std::cout << "\n size of Mask is: ";
+	std::cout << fgMask.size;
 	return 0;
 }

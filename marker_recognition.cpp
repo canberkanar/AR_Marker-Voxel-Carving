@@ -66,14 +66,14 @@ main(int argc, char** argv)
 					cv::Mat distCoeffs = camera.Distorsion;
 
 					//Uncomment to see the 3d orientations of the arUco markers
-//					std::vector<cv::Vec3d> rvecs, tvecs;
-//					cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-//					for (int i = 0; i < rvecs.size(); ++i)
-//					{
-//						auto rvec = rvecs[i];
-//						auto tvec = tvecs[i];
-//						cv::aruco::drawAxis(frame, cameraMatrix, distCoeffs, rvec, tvec, 0.1);
-//					}
+					std::vector<cv::Vec3d> rvecs, tvecs;
+					cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
+					for (int i = 0; i < rvecs.size(); ++i)
+					{
+						auto rvec = rvecs[i];
+						auto tvec = tvecs[i];
+						cv::aruco::drawAxis(frame, cameraMatrix, distCoeffs, rvec, tvec, 0.1);
+					}
 
 					//Perform PNP
 					std::vector<cv::Point2d> imagePoints;
