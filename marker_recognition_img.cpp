@@ -8,7 +8,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
-#include <direct.h>
+//#include <direct.h>
 
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
@@ -172,7 +172,7 @@ main(int argc, char** argv)
 
 		for (int i = 0; i < 7; i++) {
 			std::stringstream path;
-			path << "../../../images/" << "image_" << (i+1) << ".jpg";
+			path << "images/" << "image_" << (i+1) << ".jpg";
 			std::string image_path = cv::samples::findFile(path.str());
 			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
 			if (img.empty())
@@ -200,7 +200,7 @@ main(int argc, char** argv)
 			{
 				
 				::aruco::CameraParameters cam;
-				cam.readFromXMLFile("out_camera_data.xml");
+				cam.readFromXMLFile("extern/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
