@@ -15,6 +15,23 @@
 #include <opencv2/imgcodecs.hpp>
 
 #include "PointsObjectCoord.h"
+#include <vtkSmartPointer.h>
+#include <vtkStructuredPoints.h>
+#include <vtkPointData.h>
+#include <vtkPLYWriter.h>
+#include <vtkFloatArray.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkMarchingCubes.h>
+#include <vtkCleanPolyData.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+#include <vtkProperty.h>
+#include <vtkAutoInit.h> 
+VTK_MODULE_INIT(vtkRenderingOpenGL2);
+VTK_MODULE_INIT(vtkInteractionStyle);
+
 using namespace cv;
 using namespace std;
 //Put in "Line;" to print the program line number
@@ -157,6 +174,86 @@ void carve(float fArray[], startParams params, camera cam) {
 	}
 
 }
+void renderModel(float fArray[], startParams params) {
+
+	/* create vtk visualization pipeline from voxel grid (float array) */
+
+	vtkSmartPointer<vtkStructuredPoints> sPoints = vtkSmartPointer<vtkStructuredPoints>::New();
+	sPoints->SetDimensions(VOXEL_DIM, VOXEL_DIM, VOXEL_DIM);
+	sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
+	sPoints->SetOrigin(params.startZ, params.startY, params.startX);
+	//sPoints->SetScalarTypeToFloat();
+
+	vtkSmartPointer<vtkFloatArray> vtkFArray = vtkSmartPointer<vtkFloatArray>::New();
+	vtkFArray->SetNumberOfValues(VOXEL_SIZE);
+	vtkFArray->SetArray(fArray, VOXEL_SIZE, 1);
+
+	sPoints->GetPointData()->SetScalars(vtkFArray);
+	sPoints->GetPointData()->Update();
+	//sPoints->Update();
+
+	/* create iso surface with marching cubes algorithm */
+
+	vtkSmartPointer<vtkMarchingCubes> mcSource = vtkSmartPointer<vtkMarchingCubes>::New();
+	mcSource->SetInputData(sPoints);
+	mcSource->SetNumberOfContours(1);
+	mcSource->SetValue(0, 0.5);
+	mcSource->Update();
+	   
+	/* recreate mesh topology and merge vertices */
+
+	vtkSmartPointer<vtkCleanPolyData> cleanPolyData = vtkSmartPointer<vtkCleanPolyData>::New();
+	cleanPolyData->SetInputConnection(mcSource->GetOutputPort());
+	cleanPolyData->Update();
+
+	/* usual render stuff */
+
+	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+	renderer->SetBackground(.45, .45, .9);
+	renderer->SetBackground2(.0, .0, .0);
+	renderer->GradientBackgroundOn();
+
+	vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+	renderWindow->AddRenderer(renderer);
+	vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+	interactor->SetRenderWindow(renderWindow);
+
+	vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	mapper->SetInputConnection(cleanPolyData->GetOutputPort());
+	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+
+	actor->SetMapper(mapper);
+
+	/* visible light properties */
+
+	actor->GetProperty()->SetSpecular(0.15);
+	actor->GetProperty()->SetInterpolationToPhong();
+	renderer->AddActor(actor);
+
+	renderWindow->Render();
+	interactor->Start();
+}
+
+void exportModel(char* filename, vtkPolyData* polyData) {
+
+
+
+	/* exports 3d model in ply format */
+
+	vtkSmartPointer<vtkPLYWriter> plyExporter = vtkSmartPointer<vtkPLYWriter>::New();
+
+	plyExporter->SetFileName(filename);
+
+	plyExporter->SetInputData(polyData);
+
+	plyExporter->Update();
+
+	plyExporter->Write();
+
+}
+
+
+
 
 int
 main(int argc, char** argv)
@@ -172,7 +269,7 @@ main(int argc, char** argv)
 
 		for (int i = 0; i < 7; i++) {
 			std::stringstream path;
-			path << "../../../images/" << "image_" << (i+1) << ".jpg";
+			path << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+1) << ".jpg";
 			std::string image_path = cv::samples::findFile(path.str());
 			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
 			if (img.empty())
@@ -200,7 +297,7 @@ main(int argc, char** argv)
 			{
 				
 				::aruco::CameraParameters cam;
-				cam.readFromXMLFile("out_camera_data.xml");
+				cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/extern/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
@@ -248,7 +345,6 @@ main(int argc, char** argv)
 				vconcat(c.P, lowerRank, c.P);
 				c.Silhouette = silhouette;
 				cameras.push_back(c);
-
 				
 				cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
 			}
@@ -285,12 +381,15 @@ main(int argc, char** argv)
 			carve(fArray, params, cameras.at(i));
 		}
 
+
 		/* show example of segmented image */
 		cv::Mat original, segmented;
 		original = resizeImg(cameras.at(1).Image);
 		segmented = resizeImg(cameras.at(1).Silhouette);
 		cv::imshow("Squirrel", original);
 		cv::imshow("Squirrel Silhouette", segmented);
+
+		renderModel(fArray, params);
 		cv::waitKey(0);
 		//NEWEND
 	}
