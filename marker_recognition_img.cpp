@@ -8,11 +8,13 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
-#include <direct.h>
+//#include <direct.h>
 
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgcodecs.hpp>
+
+#include <opencv2/imgproc/types_c.h>
 
 #include "PointsObjectCoord.h"
 #include <vtkSmartPointer.h>
@@ -28,7 +30,7 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
 #include <vtkProperty.h>
-#include <vtkAutoInit.h> 
+#include <vtkAutoInit.h>
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 VTK_MODULE_INIT(vtkInteractionStyle);
 
@@ -174,6 +176,7 @@ void carve(float fArray[], startParams params, camera cam) {
 	}
 
 }
+
 void renderModel(float fArray[], startParams params) {
 
 	/* create vtk visualization pipeline from voxel grid (float array) */
