@@ -31,8 +31,14 @@
 #include <vtkActor.h>
 #include <vtkProperty.h>
 #include <vtkAutoInit.h>
+#include <vtkOutlineFilter.h>
+#include <vtkSphereSource.h>
+
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
+
 VTK_MODULE_INIT(vtkInteractionStyle);
+
+#define N_OF_IMAGES 7
 
 using namespace cv;
 using namespace std;
@@ -192,8 +198,8 @@ void renderModel(float fArray[], startParams params) {
 
     vtkSmartPointer<vtkStructuredPoints> sPoints = vtkSmartPointer<vtkStructuredPoints>::New();
     sPoints->SetDimensions(VOXEL_DIM, VOXEL_DIM, VOXEL_DIM);
-    sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
-    sPoints->SetOrigin(params.startZ, params.startY, params.startX);
+//    sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
+//    sPoints->SetOrigin(params.startZ, params.startY, params.startX);
     //sPoints->SetScalarTypeToFloat();
 
     vtkSmartPointer<vtkFloatArray> vtkFArray = vtkSmartPointer<vtkFloatArray>::New();
@@ -236,11 +242,40 @@ void renderModel(float fArray[], startParams params) {
 
     actor->SetMapper(mapper);
 
+    // Create a sphere
+    vtkSmartPointer<vtkSphereSource> sphereSource =
+            vtkSmartPointer<vtkSphereSource>::New();
+    sphereSource->SetCenter(0.0, 0.0, 0.0);
+    sphereSource->SetRadius(5.0);
+    sphereSource->Update();
+
+    vtkPolyData *sphere = sphereSource->GetOutput();
+    // Create the outline
+    vtkSmartPointer<vtkOutlineFilter> outline =
+            vtkSmartPointer<vtkOutlineFilter>::New();
+#if VTK_MAJOR_VERSION <= 5
+    outline->SetInput(sphere);
+#else
+    outline->SetInputData(sphere);
+#endif
+    vtkSmartPointer<vtkPolyDataMapper> outlineMapper =
+            vtkSmartPointer<vtkPolyDataMapper>::New();
+    outlineMapper->SetInputConnection(outline->GetOutputPort());
+    vtkSmartPointer<vtkActor> outlineActor =
+            vtkSmartPointer<vtkActor>::New();
+    outlineActor->SetMapper(outlineMapper);
+    outlineActor->GetProperty()->SetColor(0, 0, 0);
+
+
     /* visible light properties */
 
     actor->GetProperty()->SetSpecular(0.15);
     actor->GetProperty()->SetInterpolationToPhong();
+
+    // Add the actors to the scene
     renderer->AddActor(actor);
+    renderer->AddActor(outlineActor);
+    renderer->SetBackground(1,1,1); // Background color white
 
     renderWindow->Render();
     interactor->Start();
@@ -272,9 +307,9 @@ int main(int argc, char **argv) {
 
         cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
-        Mat frames[7];
+        Mat frames[N_OF_IMAGES];
 
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < N_OF_IMAGES; i++) {
             std::stringstream path;
             path << "images/" << "image_" << (i + 1) << ".jpg";
             std::string image_path = cv::samples::findFile(path.str());
@@ -301,38 +336,45 @@ int main(int argc, char **argv) {
             cv::aruco::detectMarkers(frames[i], dictionary, corners, ids);
 
             if (!ids.empty()) {
-                if (getIndexMarker(0, ids) != -1 && getIndexMarker((15), ids) != -1 && getIndexMarker((5), ids) != -1 &&
-                    getIndexMarker((10), ids) != -1) {
-
-                    int m1 = getIndexMarker(0, ids);
-                    int m2 = getIndexMarker((15), ids);
-                    int m3 = getIndexMarker((5), ids);
-                    int m4 = getIndexMarker((10), ids);
-
-                    cv::Point2f a1 = corners[m1][2];
-                    cv::Point2f a2 = corners[m2][0];
-                    cv::Point2f a3 = corners[m3][3];
-                    cv::Point2f a4 = corners[m4][1];
-
-                    vector<cv::Point> point;
-
-                    point.push_back(Point(a1.x, a1.y));
-                    point.push_back(Point(a3.x, a3.y));
-                    point.push_back(Point(a2.x, a2.y));
-                    point.push_back(Point(a4.x, a4.y));
-
-                    cvtColor(frames[i], frames[i], CV_BGR2GRAY);
-
-                    // Mask is black with white where our ROI is
-                    Mat mask = Mat::zeros(frames[i].rows, frames[i].cols, CV_8UC1);
-                    vector<vector<Point>> pts{point};
-                    fillPoly(mask, pts, Scalar(255, 255, 255));
-
-                    cv::Mat white_background(frames[i].rows, frames[i].cols, CV_8UC1, cv::Scalar(255, 255, 255));
-                    cv::bitwise_and(frames[i], mask, white_background, mask);
-
-                    silhouette = white_background;
-                }
+//                if (getIndexMarker(0, ids) != -1 && getIndexMarker((15), ids) != -1 && getIndexMarker((5), ids) != -1 &&
+//                    getIndexMarker((10), ids) != -1) {
+//
+//                    int m1 = getIndexMarker(0, ids);
+//                    int m2 = getIndexMarker((15), ids);
+//                    int m3 = getIndexMarker((5), ids);
+//                    int m4 = getIndexMarker((10), ids);
+//
+//                    cv::Point2f a1 = corners[m1][2];
+//                    cv::Point2f a2 = corners[m2][0];
+//                    cv::Point2f a3 = corners[m3][3];
+//                    cv::Point2f a4 = corners[m4][1];
+//
+//                    vector<cv::Point> point;
+//
+//                    point.push_back(Point(a1.x, a1.y));
+//                    point.push_back(Point(a3.x, a3.y));
+//                    point.push_back(Point(a2.x, a2.y));
+//                    point.push_back(Point(a4.x, a4.y));
+//
+//                    cvtColor(frames[i], frames[i], CV_BGR2GRAY);
+//
+//                    // Mask is black with white where our ROI is
+//                    Mat mask = Mat::zeros(frames[i].rows, frames[i].cols, CV_8UC1);
+//                    vector<vector<Point>> pts{point};
+//                    fillPoly(mask, pts, Scalar(255, 255, 255));
+//
+//                    cv::Mat white_background(frames[i].rows, frames[i].cols, CV_8UC1, cv::Scalar(255, 255, 255));
+//                    cv::bitwise_and(frames[i], mask, white_background, mask);
+//
+//                    cv::cvtColor(white_background, white_background, CV_GRAY2RGB);
+//
+//                    cv::cvtColor(white_background, silhouette, 40);
+//                    //Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
+//                    cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
+//
+////                    imshow("Display window", silhouette);
+////                    cv::waitKey(0);
+//                }
 
                 ::aruco::CameraParameters cam;
                 cam.readFromXMLFile("extern/out_camera_data.xml");
@@ -392,8 +434,8 @@ int main(int argc, char **argv) {
         }
         //NEEWW
         /* bounding box dimensions of squirrel */
-        float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
-        float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
+        float xmin = -550, ymin = -350, zmin = -250;
+        float xmax = 550, ymax = 350, zmax = 250;
 
         float bbwidth = std::abs(xmax - xmin) * 1.15;
         float bbheight = std::abs(ymax - ymin) * 1.15;
@@ -412,7 +454,7 @@ int main(int argc, char **argv) {
         std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
 
         /* carving model for every given camera image */
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < N_OF_IMAGES; i++) {
             std::cout << cameras.at(i).P;
             carve(fArray, params, cameras.at(i));
         }
