@@ -40,7 +40,6 @@ int main(int argc, char* argv[])
 			std::cout << "Could not open camera!\n";
 		while (cap.isOpened() && cap.read(frame)) {
 			fgMask = subtractBackground(frame, pBackSub);
-
 			//show the current frame and the fg masks
 			cv::imshow("Frame", frame);
 			cv::imshow("FG Mask", fgMask);

@@ -299,179 +299,144 @@ void exportModel(char *filename, vtkPolyData *polyData) {
 
 }
 
-
-int main(int argc, char **argv) {
-    try {
-        std::vector<camera> cameras;
-
-
-        cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
-
-        Mat frames[N_OF_IMAGES];
-
-        for (int i = 0; i < N_OF_IMAGES; i++) {
-            std::stringstream path;
-            path << "images/" << "image_" << (i + 1) << ".jpg";
-            std::string image_path = cv::samples::findFile(path.str());
-            cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
-            if (img.empty()) {
-                std::cout << "Could not read the image: " << path.str() << std::endl;
-                return 1;
-            }
-            frames[i] = resizeImg(img);
+int
+main(int argc, char** argv)
+{
+	try
+	{
+		std::vector<camera> cameras;
 
 
-            /* silhouette */
+		cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
-            cv::Mat silhouette;
-            //using CV_BGR2HSV for 40
-            cv::cvtColor(img, silhouette, 40);
-            //Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
-            cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
+		Mat frames[7];
 
+		for (int i = 0; i < 7; i++) {
+			std::stringstream path;
+			path << "images/" << "image_" << (i+1) << ".jpg";
+			std::string image_path = cv::samples::findFile(path.str());
+			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
+			if (img.empty())
+			{
+				std::cout << "Could not read the image: " << path.str() << std::endl;
+				return 1;
+			}
+			frames[i] = resizeImg(img);
 
-            // Detect markers in frame
-            std::vector<int> ids;
-            std::vector<std::vector<cv::Point2f> > corners;
-            cv::aruco::detectMarkers(frames[i], dictionary, corners, ids);
+			/* silhouette */
+			
+			cv::Mat silhouette;
+			//using CV_BGR2HSV for 40
+			cv::cvtColor(img, silhouette, 40);
+			//Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
+			cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
 
-            if (!ids.empty()) {
-//                if (getIndexMarker(0, ids) != -1 && getIndexMarker((15), ids) != -1 && getIndexMarker((5), ids) != -1 &&
-//                    getIndexMarker((10), ids) != -1) {
-//
-//                    int m1 = getIndexMarker(0, ids);
-//                    int m2 = getIndexMarker((15), ids);
-//                    int m3 = getIndexMarker((5), ids);
-//                    int m4 = getIndexMarker((10), ids);
-//
-//                    cv::Point2f a1 = corners[m1][2];
-//                    cv::Point2f a2 = corners[m2][0];
-//                    cv::Point2f a3 = corners[m3][3];
-//                    cv::Point2f a4 = corners[m4][1];
-//
-//                    vector<cv::Point> point;
-//
-//                    point.push_back(Point(a1.x, a1.y));
-//                    point.push_back(Point(a3.x, a3.y));
-//                    point.push_back(Point(a2.x, a2.y));
-//                    point.push_back(Point(a4.x, a4.y));
-//
-//                    cvtColor(frames[i], frames[i], CV_BGR2GRAY);
-//
-//                    // Mask is black with white where our ROI is
-//                    Mat mask = Mat::zeros(frames[i].rows, frames[i].cols, CV_8UC1);
-//                    vector<vector<Point>> pts{point};
-//                    fillPoly(mask, pts, Scalar(255, 255, 255));
-//
-//                    cv::Mat white_background(frames[i].rows, frames[i].cols, CV_8UC1, cv::Scalar(255, 255, 255));
-//                    cv::bitwise_and(frames[i], mask, white_background, mask);
-//
-//                    cv::cvtColor(white_background, white_background, CV_GRAY2RGB);
-//
-//                    cv::cvtColor(white_background, silhouette, 40);
-//                    //Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
-//                    cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
-//
-////                    imshow("Display window", silhouette);
-////                    cv::waitKey(0);
-//                }
+			
+			// Detect markers in frame
+			std::vector<int> ids;
+			std::vector<std::vector<cv::Point2f> > corners;
+			cv::aruco::detectMarkers(frames[i], dictionary, corners, ids);
 
-                ::aruco::CameraParameters cam;
-                cam.readFromXMLFile("extern/out_camera_data.xml");
-                cv::Mat cameraMatrix = cam.CameraMatrix;
-                cv::Mat distCoeffs = cam.Distorsion;
+			if (!ids.empty())
+			{
+				
+				::aruco::CameraParameters cam;
+				cam.readFromXMLFile("extern/out_camera_data.xml");
+				cv::Mat cameraMatrix = cam.CameraMatrix;
+				cv::Mat distCoeffs = cam.Distorsion;
 
-                //Uncomment to see the 3d orientations of the arUco markers
-                /*std::vector<cv::Vec3d> rvecs, tvecs;
-                cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-                for (int i = 0; i < rvecs.size(); ++i)
-                {
-                    auto rvec = rvecs[i];
-                    auto tvec = tvecs[i];
-                    cv::aruco::drawAxis(frames[i], cameraMatrix, distCoeffs, rvec, tvec, 0.1);
-                }*/
+				//Uncomment to see the 3d orientations of the arUco markers
+				/*std::vector<cv::Vec3d> rvecs, tvecs;
+				cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
+				for (int i = 0; i < rvecs.size(); ++i)
+				{
+					auto rvec = rvecs[i];
+					auto tvec = tvecs[i];
+					cv::aruco::drawAxis(frames[i], cameraMatrix, distCoeffs, rvec, tvec, 0.1);
+				}*/
 
-                //Perform PNP
-                std::vector<cv::Point2d> imagePoints;
-                std::vector<cv::Point3d> objectPoints;
-                for (int &id : ids) {
-                    for (unsigned x = 0; x < 4; x++) {
-                        objectPoints.push_back(objectCoordMap[id][x]);
-                    }
-                }
-                for (unsigned idx = 0; idx < ids.size(); idx++) {
-                    for (unsigned x = 0; x < 4; x++) {
-                        imagePoints.push_back(corners[idx][x]);
-                    }
-                }
+				//Perform PNP
+				std::vector<cv::Point2d> imagePoints;
+				std::vector<cv::Point3d> objectPoints;
+				for (int& id : ids)
+				{
+					for (unsigned x = 0; x < 4; x++)
+					{
+						objectPoints.push_back(objectCoordMap[id][x]);
+					}
+				}
+				for (unsigned idx = 0; idx < ids.size(); idx++)
+				{
+					for (unsigned x = 0; x < 4; x++)
+					{
+						imagePoints.push_back(corners[idx][x]);
+					}
+				}
 
-                cv::Mat cameraRVec, cameraTVec;
-                cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
+				cv::Mat cameraRVec, cameraTVec;
+				cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
 
-                std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
-                std::cout << "Camera Translation:\n" << cameraTVec << "\n";
+				std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
+				std::cout << "Camera Translation:\n" << cameraTVec << "\n";
 
+				camera c;
+				c.Image = img;
+				c.R = cameraMatrix;
+				c.t = cameraTVec;
+				c.t.convertTo(c.t, 5);
+				hconcat(c.R, c.t, c.P);
+				cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0,0,0,1});
+				vconcat(c.P, lowerRank, c.P);
+				c.Silhouette = silhouette;
+				cameras.push_back(c);
 
-                camera c;
-                c.Image = img;
-                c.R = cameraMatrix;
-                c.t = cameraTVec;
-                c.t.convertTo(c.t, 5);
-                hconcat(c.R, c.t, c.P);
-                cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0, 0, 0, 1});
-                vconcat(c.P, lowerRank, c.P);
-                c.Silhouette = silhouette;
-                cameras.push_back(c);
+				
+				cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
+			}
+			subtract_background(frames[i]);
+			//cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
+			//imshow("Display window", frames[i]);
+			//cv::waitKey(0);
 
-                cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
-            }
+		}	
+		//NEEWW
+		/* bounding box dimensions of squirrel */
+		float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
+		float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
-            subtract_background(frames[i]);
-            //cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
-            //imshow("Display window", frames[i]);
-            //cv::waitKey(0);
+		float bbwidth = std::abs(xmax - xmin) * 1.15;
+		float bbheight = std::abs(ymax - ymin) * 1.15;
+		float bbdepth = std::abs(zmax - zmin) * 1.05;
 
-        }
-        //NEEWW
-        /* bounding box dimensions of squirrel */
-        float xmin = -550, ymin = -350, zmin = -250;
-        float xmax = 550, ymax = 350, zmax = 250;
+		startParams params;
+		params.startX = xmin - std::abs(xmax - xmin) * 0.15;
+		params.startY = ymin - std::abs(ymax - ymin) * 0.15;
+		params.startZ = 0.0f;
+		params.voxelWidth = bbwidth / VOXEL_DIM;
+		params.voxelHeight = bbheight / VOXEL_DIM;
+		params.voxelDepth = bbdepth / VOXEL_DIM;
 
-        float bbwidth = std::abs(xmax - xmin) * 1.15;
-        float bbheight = std::abs(ymax - ymin) * 1.15;
-        float bbdepth = std::abs(zmax - zmin) * 1.05;
+		/* 3 dimensional voxel grid */
+		float* fArray = new float[VOXEL_SIZE];
+		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
 
-        startParams params;
-        params.startX = xmin - std::abs(xmax - xmin) * 0.15;
-        params.startY = ymin - std::abs(ymax - ymin) * 0.15;
-        params.startZ = 0.0f;
-        params.voxelWidth = bbwidth / VOXEL_DIM;
-        params.voxelHeight = bbheight / VOXEL_DIM;
-        params.voxelDepth = bbdepth / VOXEL_DIM;
+		/* carving model for every given camera image */
+		for (int i = 0; i < 7; i++) {
+			std::cout << cameras.at(i).P;
+			carve(fArray, params, cameras.at(i));
+		}
 
-        /* 3 dimensional voxel grid */
-        float *fArray = new float[VOXEL_SIZE];
-        std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
-
-        /* carving model for every given camera image */
-        for (int i = 0; i < N_OF_IMAGES; i++) {
-            std::cout << cameras.at(i).P;
-            carve(fArray, params, cameras.at(i));
-        }
-
-
-        /* show example of segmented image */
-        cv::Mat original, segmented;
-        original = resizeImg(cameras.at(4).Image);
-        segmented = resizeImg(cameras.at(4).Silhouette);
-        cv::imshow("Squirrel", original);
-        cv::imshow("Squirrel Silhouette", segmented);
-
-        renderModel(fArray, params);
-        cv::waitKey(0);
-        //NEWEND
-    }
-    catch (std::exception &ex) {
-        std::cout << "Exception :" << ex.what() << std::endl;
-    }
+		/* show example of segmented image */
+		cv::Mat original, segmented;
+		original = resizeImg(cameras.at(1).Image);
+		segmented = resizeImg(cameras.at(1).Silhouette);
+		cv::imshow("Squirrel", original);
+		cv::imshow("Squirrel Silhouette", segmented);
+		cv::waitKey(0);
+		//NEWEND
+	}
+	catch (std::exception& ex)
+	{
+		std::cout << "Exception :" << ex.what() << std::endl;
+	}
 }
