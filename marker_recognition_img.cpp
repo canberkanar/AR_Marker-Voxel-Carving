@@ -31,8 +31,14 @@
 #include <vtkActor.h>
 #include <vtkProperty.h>
 #include <vtkAutoInit.h>
+#include <vtkOutlineFilter.h>
+#include <vtkSphereSource.h>
+
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
+
 VTK_MODULE_INIT(vtkInteractionStyle);
+
+#define N_OF_IMAGES 7
 
 using namespace cv;
 using namespace std;
@@ -192,8 +198,8 @@ void renderModel(float fArray[], startParams params) {
 
     vtkSmartPointer<vtkStructuredPoints> sPoints = vtkSmartPointer<vtkStructuredPoints>::New();
     sPoints->SetDimensions(VOXEL_DIM, VOXEL_DIM, VOXEL_DIM);
-    sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
-    sPoints->SetOrigin(params.startZ, params.startY, params.startX);
+//    sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
+//    sPoints->SetOrigin(params.startZ, params.startY, params.startX);
     //sPoints->SetScalarTypeToFloat();
 
     vtkSmartPointer<vtkFloatArray> vtkFArray = vtkSmartPointer<vtkFloatArray>::New();
@@ -236,11 +242,40 @@ void renderModel(float fArray[], startParams params) {
 
     actor->SetMapper(mapper);
 
+    // Create a sphere
+    vtkSmartPointer<vtkSphereSource> sphereSource =
+            vtkSmartPointer<vtkSphereSource>::New();
+    sphereSource->SetCenter(0.0, 0.0, 0.0);
+    sphereSource->SetRadius(5.0);
+    sphereSource->Update();
+
+    vtkPolyData *sphere = sphereSource->GetOutput();
+    // Create the outline
+    vtkSmartPointer<vtkOutlineFilter> outline =
+            vtkSmartPointer<vtkOutlineFilter>::New();
+#if VTK_MAJOR_VERSION <= 5
+    outline->SetInput(sphere);
+#else
+    outline->SetInputData(sphere);
+#endif
+    vtkSmartPointer<vtkPolyDataMapper> outlineMapper =
+            vtkSmartPointer<vtkPolyDataMapper>::New();
+    outlineMapper->SetInputConnection(outline->GetOutputPort());
+    vtkSmartPointer<vtkActor> outlineActor =
+            vtkSmartPointer<vtkActor>::New();
+    outlineActor->SetMapper(outlineMapper);
+    outlineActor->GetProperty()->SetColor(0, 0, 0);
+
+
     /* visible light properties */
 
     actor->GetProperty()->SetSpecular(0.15);
     actor->GetProperty()->SetInterpolationToPhong();
+
+    // Add the actors to the scene
     renderer->AddActor(actor);
+    renderer->AddActor(outlineActor);
+    renderer->SetBackground(1,1,1); // Background color white
 
     renderWindow->Render();
     interactor->Start();
@@ -264,172 +299,144 @@ void exportModel(char *filename, vtkPolyData *polyData) {
 
 }
 
-
-int main(int argc, char **argv) {
-    try {
-        std::vector<camera> cameras;
-
-
-        cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
-
-        Mat frames[7];
-
-        for (int i = 0; i < 7; i++) {
-            std::stringstream path;
-            path << "images/" << "image_" << (i + 1) << ".jpg";
-            std::string image_path = cv::samples::findFile(path.str());
-            cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
-            if (img.empty()) {
-                std::cout << "Could not read the image: " << path.str() << std::endl;
-                return 1;
-            }
-            frames[i] = resizeImg(img);
+int
+main(int argc, char** argv)
+{
+	try
+	{
+		std::vector<camera> cameras;
 
 
-            /* silhouette */
+		cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
-            cv::Mat silhouette;
-            //using CV_BGR2HSV for 40
-            cv::cvtColor(img, silhouette, 40);
-            //Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
-            cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
+		Mat frames[7];
 
+		for (int i = 0; i < 7; i++) {
+			std::stringstream path;
+			path << "images/" << "image_" << (i+1) << ".jpg";
+			std::string image_path = cv::samples::findFile(path.str());
+			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
+			if (img.empty())
+			{
+				std::cout << "Could not read the image: " << path.str() << std::endl;
+				return 1;
+			}
+			frames[i] = resizeImg(img);
 
-            // Detect markers in frame
-            std::vector<int> ids;
-            std::vector<std::vector<cv::Point2f> > corners;
-            cv::aruco::detectMarkers(frames[i], dictionary, corners, ids);
+			/* silhouette */
+			
+			cv::Mat silhouette;
+			//using CV_BGR2HSV for 40
+			cv::cvtColor(img, silhouette, 40);
+			//Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
+			cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
 
-            if (!ids.empty()) {
-                if (getIndexMarker(0, ids) != -1 && getIndexMarker((15), ids) != -1 && getIndexMarker((5), ids) != -1 &&
-                    getIndexMarker((10), ids) != -1) {
+			
+			// Detect markers in frame
+			std::vector<int> ids;
+			std::vector<std::vector<cv::Point2f> > corners;
+			cv::aruco::detectMarkers(frames[i], dictionary, corners, ids);
 
-                    int m1 = getIndexMarker(0, ids);
-                    int m2 = getIndexMarker((15), ids);
-                    int m3 = getIndexMarker((5), ids);
-                    int m4 = getIndexMarker((10), ids);
+			if (!ids.empty())
+			{
+				
+				::aruco::CameraParameters cam;
+				cam.readFromXMLFile("extern/out_camera_data.xml");
+				cv::Mat cameraMatrix = cam.CameraMatrix;
+				cv::Mat distCoeffs = cam.Distorsion;
 
-                    cv::Point2f a1 = corners[m1][2];
-                    cv::Point2f a2 = corners[m2][0];
-                    cv::Point2f a3 = corners[m3][3];
-                    cv::Point2f a4 = corners[m4][1];
+				//Uncomment to see the 3d orientations of the arUco markers
+				/*std::vector<cv::Vec3d> rvecs, tvecs;
+				cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
+				for (int i = 0; i < rvecs.size(); ++i)
+				{
+					auto rvec = rvecs[i];
+					auto tvec = tvecs[i];
+					cv::aruco::drawAxis(frames[i], cameraMatrix, distCoeffs, rvec, tvec, 0.1);
+				}*/
 
-                    vector<cv::Point> point;
+				//Perform PNP
+				std::vector<cv::Point2d> imagePoints;
+				std::vector<cv::Point3d> objectPoints;
+				for (int& id : ids)
+				{
+					for (unsigned x = 0; x < 4; x++)
+					{
+						objectPoints.push_back(objectCoordMap[id][x]);
+					}
+				}
+				for (unsigned idx = 0; idx < ids.size(); idx++)
+				{
+					for (unsigned x = 0; x < 4; x++)
+					{
+						imagePoints.push_back(corners[idx][x]);
+					}
+				}
 
-                    point.push_back(Point(a1.x, a1.y));
-                    point.push_back(Point(a3.x, a3.y));
-                    point.push_back(Point(a2.x, a2.y));
-                    point.push_back(Point(a4.x, a4.y));
+				cv::Mat cameraRVec, cameraTVec;
+				cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
 
-                    cvtColor(frames[i], frames[i], CV_BGR2GRAY);
+				std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
+				std::cout << "Camera Translation:\n" << cameraTVec << "\n";
 
-                    // Mask is black with white where our ROI is
-                    Mat mask = Mat::zeros(frames[i].rows, frames[i].cols, CV_8UC1);
-                    vector<vector<Point>> pts{point};
-                    fillPoly(mask, pts, Scalar(255, 255, 255));
+				camera c;
+				c.Image = img;
+				c.R = cameraMatrix;
+				c.t = cameraTVec;
+				c.t.convertTo(c.t, 5);
+				hconcat(c.R, c.t, c.P);
+				cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0,0,0,1});
+				vconcat(c.P, lowerRank, c.P);
+				c.Silhouette = silhouette;
+				cameras.push_back(c);
 
-                    cv::Mat white_background(frames[i].rows, frames[i].cols, CV_8UC1, cv::Scalar(255, 255, 255));
-                    cv::bitwise_and(frames[i], mask, white_background, mask);
+				
+				cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
+			}
+			subtract_background(frames[i]);
+			//cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
+			//imshow("Display window", frames[i]);
+			//cv::waitKey(0);
 
-                    silhouette = white_background;
-                }
+		}	
+		//NEEWW
+		/* bounding box dimensions of squirrel */
+		float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
+		float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
-                ::aruco::CameraParameters cam;
-                cam.readFromXMLFile("extern/out_camera_data.xml");
-                cv::Mat cameraMatrix = cam.CameraMatrix;
-                cv::Mat distCoeffs = cam.Distorsion;
+		float bbwidth = std::abs(xmax - xmin) * 1.15;
+		float bbheight = std::abs(ymax - ymin) * 1.15;
+		float bbdepth = std::abs(zmax - zmin) * 1.05;
 
-                //Uncomment to see the 3d orientations of the arUco markers
-                /*std::vector<cv::Vec3d> rvecs, tvecs;
-                cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-                for (int i = 0; i < rvecs.size(); ++i)
-                {
-                    auto rvec = rvecs[i];
-                    auto tvec = tvecs[i];
-                    cv::aruco::drawAxis(frames[i], cameraMatrix, distCoeffs, rvec, tvec, 0.1);
-                }*/
+		startParams params;
+		params.startX = xmin - std::abs(xmax - xmin) * 0.15;
+		params.startY = ymin - std::abs(ymax - ymin) * 0.15;
+		params.startZ = 0.0f;
+		params.voxelWidth = bbwidth / VOXEL_DIM;
+		params.voxelHeight = bbheight / VOXEL_DIM;
+		params.voxelDepth = bbdepth / VOXEL_DIM;
 
-                //Perform PNP
-                std::vector<cv::Point2d> imagePoints;
-                std::vector<cv::Point3d> objectPoints;
-                for (int &id : ids) {
-                    for (unsigned x = 0; x < 4; x++) {
-                        objectPoints.push_back(objectCoordMap[id][x]);
-                    }
-                }
-                for (unsigned idx = 0; idx < ids.size(); idx++) {
-                    for (unsigned x = 0; x < 4; x++) {
-                        imagePoints.push_back(corners[idx][x]);
-                    }
-                }
+		/* 3 dimensional voxel grid */
+		float* fArray = new float[VOXEL_SIZE];
+		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
 
-                cv::Mat cameraRVec, cameraTVec;
-                cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
+		/* carving model for every given camera image */
+		for (int i = 0; i < 7; i++) {
+			std::cout << cameras.at(i).P;
+			carve(fArray, params, cameras.at(i));
+		}
 
-                std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
-                std::cout << "Camera Translation:\n" << cameraTVec << "\n";
-
-
-                camera c;
-                c.Image = img;
-                c.R = cameraMatrix;
-                c.t = cameraTVec;
-                c.t.convertTo(c.t, 5);
-                hconcat(c.R, c.t, c.P);
-                cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0, 0, 0, 1});
-                vconcat(c.P, lowerRank, c.P);
-                c.Silhouette = silhouette;
-                cameras.push_back(c);
-
-                cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
-            }
-
-            subtract_background(frames[i]);
-            //cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
-            //imshow("Display window", frames[i]);
-            //cv::waitKey(0);
-
-        }
-        //NEEWW
-        /* bounding box dimensions of squirrel */
-        float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
-        float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
-
-        float bbwidth = std::abs(xmax - xmin) * 1.15;
-        float bbheight = std::abs(ymax - ymin) * 1.15;
-        float bbdepth = std::abs(zmax - zmin) * 1.05;
-
-        startParams params;
-        params.startX = xmin - std::abs(xmax - xmin) * 0.15;
-        params.startY = ymin - std::abs(ymax - ymin) * 0.15;
-        params.startZ = 0.0f;
-        params.voxelWidth = bbwidth / VOXEL_DIM;
-        params.voxelHeight = bbheight / VOXEL_DIM;
-        params.voxelDepth = bbdepth / VOXEL_DIM;
-
-        /* 3 dimensional voxel grid */
-        float *fArray = new float[VOXEL_SIZE];
-        std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
-
-        /* carving model for every given camera image */
-        for (int i = 0; i < 7; i++) {
-            std::cout << cameras.at(i).P;
-            carve(fArray, params, cameras.at(i));
-        }
-
-
-        /* show example of segmented image */
-        cv::Mat original, segmented;
-        original = resizeImg(cameras.at(4).Image);
-        segmented = resizeImg(cameras.at(4).Silhouette);
-        cv::imshow("Squirrel", original);
-        cv::imshow("Squirrel Silhouette", segmented);
-
-        renderModel(fArray, params);
-        cv::waitKey(0);
-        //NEWEND
-    }
-    catch (std::exception &ex) {
-        std::cout << "Exception :" << ex.what() << std::endl;
-    }
+		/* show example of segmented image */
+		cv::Mat original, segmented;
+		original = resizeImg(cameras.at(1).Image);
+		segmented = resizeImg(cameras.at(1).Silhouette);
+		cv::imshow("Squirrel", original);
+		cv::imshow("Squirrel Silhouette", segmented);
+		cv::waitKey(0);
+		//NEWEND
+	}
+	catch (std::exception& ex)
+	{
+		std::cout << "Exception :" << ex.what() << std::endl;
+	}
 }

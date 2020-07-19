@@ -10,6 +10,7 @@
 #include <opencv2/highgui.hpp>
 
 #include "PointsObjectCoord.h"
+#include "utils.h"
 
 //Put in "Line;" to print the program line number
 #define LINE std::cout<<__LINE__ << "\n"
@@ -51,9 +52,9 @@ main(int argc, char** argv)
 		while (cap.isOpened() && cap.read(frame))
 		{
 			// Detect markers in frame
-			std::vector<int> ids;
-			std::vector<std::vector<cv::Point2f> > corners;
-			cv::aruco::detectMarkers(frame, dictionary, corners, ids);
+			auto markerInfo = detectArucoMarkers(dictionary, frame);
+			std::vector<int> ids = markerInfo.first;
+			std::vector<std::vector<cv::Point2f>> corners = markerInfo.second;
 
 			// if at least one marker detected
 			if (!ids.empty())
@@ -76,28 +77,10 @@ main(int argc, char** argv)
 					}
 
 					//Perform PNP
-					std::vector<cv::Point2d> imagePoints;
-					std::vector<cv::Point3d> objectPoints;
-					for (int& id : ids)
-					{
-						for (unsigned x = 0; x < 4; x++)
-						{
-							objectPoints.push_back(objectCoordMap[id][x]);
-						}
-					}
-					for (unsigned idx = 0; idx < ids.size(); idx++)
-					{
-						for (unsigned x = 0; x < 4; x++)
-						{
-							imagePoints.push_back(corners[idx][x]);
-						}
-					}
+					auto cameraPos = findCameraPos(objectCoordMap, corners, ids, cameraMatrix, distCoeffs);
 
-					cv::Mat cameraRVec, cameraTVec;
-					cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
-
-					std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
-					std::cout << "Camera Translation:\n" << cameraTVec << "\n";
+					std::cout << "Camera Rotation:\n" << cameraPos.first  * 180 / M_PI << "\n";
+					std::cout << "Camera Translation:\n" << cameraPos.second << "\n";
 
 				}
 				cv::aruco::drawDetectedMarkers(frame, corners, ids);
