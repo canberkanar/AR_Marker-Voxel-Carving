@@ -1,67 +1,51 @@
 #include <iostream>
-#include <sstream>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
+#include <filesystem>
 #include <opencv2/videoio.hpp>
-#include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
-#include <Windows.h>
-using namespace cv;
-using namespace std;
-const char* params
-		= "{ help h         |           | Print usage }"
-		  "{ input          | vtest.avi | Path to a video or a sequence of image }"
-		  "{ algo           | MOG2      | Background subtraction method (KNN, MOG2) }";
+#include <opencv2/opencv.hpp>
+
+#include "utils.h"
 
 int main(int argc, char* argv[])
 {
 
 	if(argc < 2) {
-		std::cout<< "Usage: ./" << argv[0] << " [Camera Num]\n";
+		std::cout<< "Usage: ./" << argv[0] << " [Camera Num or File Path with format imgX.png]\n";
 		return 1;
 	}
 
-	int camNum = atoi(argv[1]);
-	// Read the web cam
-	VideoCapture cap;
+	cv::Ptr<cv::BackgroundSubtractor> pBackSub = cv::createBackgroundSubtractorMOG2();
 
-	if (argc >= 4) {
-		int dimX = atoi(argv[2]);
-		int dimY = atoi(argv[3]);
-		cap.set(cv::CAP_PROP_FRAME_WIDTH, dimX);
-		cap.set(cv::CAP_PROP_FRAME_HEIGHT, dimY);
-		if (argc == 5) {
-			int fps = atoi(argv[4]);
-			cap.set(cv::CAP_PROP_FPS, fps);
+	if(std::filesystem::exists(argv[1])) {
+		std::cout << "Interpreting input as File Path.\n";
+		std::vector<std::string> images;
+		cv::glob(std::string(argv[1]) + "img*.png", images);
+
+		unsigned x = 0;
+
+		for (const auto &file : images) {
+			cv::Mat img = cv::imread(file);
+			cv::Mat fgMask = subtractBackground(img, pBackSub);
+
+			cv::imwrite(std::string(argv[1]) + "mask_" + std::to_string(x) + ".png", fgMask);
+			x++;
+		}
+	} else {
+		std::cout << "Interpreting input as camera number.\n";
+		int camNum = std::atoi(argv[1]);
+		// Read the web cam
+		cv::VideoCapture cap;
+		cv::Mat frame, fgMask;
+		if(!cap.open(camNum, cv::CAP_ANY))
+			std::cout << "Could not open camera!\n";
+		while (cap.isOpened() && cap.read(frame)) {
+			fgMask = subtractBackground(frame, pBackSub);
+
+			//show the current frame and the fg masks
+			cv::imshow("Frame", frame);
+			cv::imshow("FG Mask", fgMask);
+			if (cv::waitKey(10) == 27) break;
 		}
 	}
-
-	//create Background Subtractor objects
-	Ptr<BackgroundSubtractor> pBackSub = createBackgroundSubtractorKNN();
-	Mat frame, fgMask;
-	if(!cap.open(camNum, cv::CAP_ANY))
-		cout << "Could not open camera!\n";
-	double startTime = GetTickCount();
-	double currentTime = GetTickCount() - startTime;
-	while ((GetTickCount() - startTime)/1000<5 && cap.isOpened() && cap.read(frame)) {
-		//update the background model
-		pBackSub->apply(frame, fgMask);
-		//get the frame number and write it on the current frame
-		rectangle(frame, cv::Point(10, 2), cv::Point(100,20),
-				  cv::Scalar(255,255,255), -1);
-		stringstream ss;
-		ss << cap.get(CAP_PROP_POS_FRAMES);
-		string frameNumberString = ss.str();
-		putText(frame, frameNumberString.c_str(), cv::Point(15, 15),
-				FONT_HERSHEY_SIMPLEX, 0.5 , cv::Scalar(0,0,0));
-		//show the current frame and the fg masks
-		imshow("Frame", frame);
-		imshow("FG Mask", fgMask);
-		if (waitKey(10) == 27) break;
-	}
-	std::cout << "Mask is: ";
-	std::cout << fgMask;
-	std::cout << "\n size of Mask is: ";
-	std::cout << fgMask.size;
 	return 0;
 }

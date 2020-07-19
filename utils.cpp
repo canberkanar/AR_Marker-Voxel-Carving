@@ -44,14 +44,17 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 
 //	std::cout << "Rotation:\n" << rotation << "\n";
 
-	for(int x = 0; x < 3; x++) {
-		for (int y = 0; y < 3; y++) {
+	for (int x = 0; x < 3; x++)
+	{
+		for (int y = 0; y < 3; y++)
+		{
 			pose.at<double>(x, y) = rotation.at<double>(x, y);
 		}
 	}
 //	std::cout  << "Assigning rotation:\n" << pose << "\n";
 
-	for(int x = 0; x < 3; x++) {
+	for (int x = 0; x < 3; x++)
+	{
 		pose.at<double>(x, 3) = cameraTVec.at<double>(x, 0);
 	}
 //	std::cout  << "Assigning Translation:\n" << pose << "\n";
@@ -59,7 +62,8 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 	pose = pose.inv();
 //	std::cout  << "Inversion:\n" << pose << "\n";
 
-	for(int x = 0; x < 3; x++) {
+	for (int x = 0; x < 3; x++)
+	{
 		cameraTVec.at<double>(x, 0) = pose.at<double>(x, 3);
 	}
 
@@ -73,7 +77,7 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 //	std::cout << "Rotation: " << cameraRVec << "\n";
 
 
-	return std::pair<cv::Mat, cv::Mat> (cameraRVec, cameraTVec);
+	return std::pair<cv::Mat, cv::Mat>(cameraRVec, cameraTVec);
 }
 
 std::pair<std::vector<int>, std::vector<std::vector<cv::Point2f>>>
@@ -83,4 +87,17 @@ detectArucoMarkers(const cv::Ptr<cv::aruco::Dictionary> dictionary, const cv::Ma
 	std::vector<std::vector<cv::Point2f>> corners;
 	cv::aruco::detectMarkers(frame, dictionary, corners, ids);
 	return std::pair<std::vector<int>, std::vector<std::vector<cv::Point2f>>>(ids, corners);
+}
+
+cv::Mat
+subtractBackground(const cv::Mat& img, cv::Ptr<cv::BackgroundSubtractor> pBackSub)
+{
+
+	//create Background Subtractor objects
+	cv::Mat fgMask;
+
+	//update the background model
+	pBackSub->apply(img, fgMask);
+
+	return fgMask;
 }

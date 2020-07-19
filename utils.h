@@ -6,8 +6,11 @@
 #define HELLOAR_UTILS_H
 
 #include <utility>
-#include <opencv2/core/mat.hpp>
 #include <unordered_map>
+#include <opencv2/core/mat.hpp>
+#include <opencv2/video.hpp>
+#include <opencv2/aruco.hpp>
+
 
 // First is RVec, 2nd is TVec
 std::pair<cv::Mat, cv::Mat>
@@ -18,6 +21,10 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 
 std::pair<std::vector<int>, std::vector<std::vector<cv::Point2f>>>
 detectArucoMarkers(const cv::Ptr<cv::aruco::Dictionary> dictionary, const cv::Mat& frame);
+
+
+cv::Mat
+subtractBackground(const cv::Mat& img, cv::Ptr<cv::BackgroundSubtractor> pBackSub);
 
 //cv::Mat
 //backgroundSubtraction()cv::Mat
