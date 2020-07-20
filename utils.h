@@ -18,13 +18,17 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 			  const std::vector<std::vector<cv::Point2f>>& corners, const std::vector<int>& ids,
 			  const cv::Mat& cameraMatrix, const cv::Mat& distCoeffs = cv::Mat());
 
-
 std::pair<std::vector<int>, std::vector<std::vector<cv::Point2f>>>
 detectArucoMarkers(const cv::Ptr<cv::aruco::Dictionary> dictionary, const cv::Mat& frame);
 
-
 cv::Mat
 subtractBackground(const cv::Mat& img, cv::Ptr<cv::BackgroundSubtractor> pBackSub);
+
+std::pair<cv::Mat, cv::Mat>
+readCameraConfigFromFile(const std::string& path);
+
+cv::Mat
+computeProjMat(const cv::Mat& camMat, const cv::Mat& rotVec, const cv::Mat& transVec);
 
 //cv::Mat
 //backgroundSubtraction()cv::Mat

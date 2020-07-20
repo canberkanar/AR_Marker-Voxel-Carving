@@ -4,6 +4,7 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/aruco.hpp>
 #include <iostream>
+#include <aruco/aruco.h>
 
 #include "utils.h"
 
@@ -100,4 +101,33 @@ subtractBackground(const cv::Mat& img, cv::Ptr<cv::BackgroundSubtractor> pBackSu
 	pBackSub->apply(img, fgMask);
 
 	return fgMask;
+}
+
+std::pair<cv::Mat, cv::Mat>
+readCameraConfigFromFile(const std::string& path)
+{
+	::aruco::CameraParameters camera;
+	camera.readFromXMLFile(path);
+	cv::Mat cameraMatrix = camera.CameraMatrix;
+	cv::Mat distCoeffs = camera.Distorsion;
+	return std::pair<cv::Mat, cv::Mat>(cameraMatrix, distCoeffs);
+}
+
+//https://answers.opencv.org/question/162932/create-a-stereo-projection-matrix-using-rvec-and-tvec/
+cv::Mat
+computeProjMat(const cv::Mat& camMat, const cv::Mat& rotVec, const cv::Mat& transVec)
+{
+	cv::Mat rotMat(3, 3, CV_64F), rotTransMat(3, 4, CV_64F); //Init.
+	//Convert rotation vector into rotation matrix
+	cv::Rodrigues(rotVec, rotMat);
+	//Append translation vector to rotation matrix
+	cv::hconcat(rotMat, transVec, rotTransMat);
+	//Compute projection matrix by multiplying intrinsic parameter
+	//matrix (A) with 3 x 4 rotation and translation pose matrix (RT).
+	//Formula: Projection Matrix = A * RT;
+//	std::cout<< "camMat type " << camMat.type() << "\n";
+	rotTransMat.convertTo(rotTransMat, camMat.type());
+//	std::cout<< "rotTransMat type " << rotTransMat.type() << "\n";
+//	std::cout<< "rotTransMat:\n" << rotTransMat << "\n";
+	return (camMat * rotTransMat);
 }
