@@ -17,6 +17,8 @@ find_package(VTK 8.2 REQUIRED)
 
 link_directories(${OpenCV_LIBRARY_DIRS})
 link_directories(${aruco_LIBRARY_DIRS})
+#message(warn ${VTK_LIBRARIES})
+
 link_directories(${VTK_LIBRARY_DIRS})
 
 #add_executable(marker_recognition marker_recognition.cpp utils.cpp)
@@ -49,7 +51,7 @@ ENDIF()
 
 IF(UNIX)
     target_link_libraries(marker_recognition ${OpenCV_LIBS} aruco)
-    target_link_libraries(background_subtraction ${OpenCV_LIBS})
+    target_link_libraries(background_subtraction ${OpenCV_LIBS} aruco)
 #    target_link_libraries(pose_estimation ${OpenCV_LIBS} aruco)
     target_link_libraries(camera_calibration ${OpenCV_LIBS} aruco)
     target_link_libraries(marker_generation ${OpenCV_LIBS} aruco)
