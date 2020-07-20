@@ -71,13 +71,14 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 //	std::cout  << "Extracted Rotation:\n" << rotation << "\n";
 
 
-	cv::Rodrigues(rotation, cameraRVec);
+	//cv::Rodrigues(rotation, cameraRVec);
 
 //	std::cout << "Translation: " << cameraTVec << "\n";
 //	std::cout << "Rotation: " << cameraRVec << "\n";
 
 
-	return std::pair<cv::Mat, cv::Mat>(cameraRVec, cameraTVec);
+	//return std::pair<cv::Mat, cv::Mat>(cameraRVec, cameraTVec);
+	return std::pair<cv::Mat, cv::Mat>(rotation, cameraTVec);
 }
 
 std::pair<std::vector<int>, std::vector<std::vector<cv::Point2f>>>

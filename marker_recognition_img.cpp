@@ -34,6 +34,8 @@
 #include <vtkOutlineFilter.h>
 #include <vtkSphereSource.h>
 
+#include "utils.h"
+
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 
 VTK_MODULE_INIT(vtkInteractionStyle);
@@ -94,7 +96,7 @@ struct camera {
 
 cv::Mat resizeImg(cv::Mat preimg) {
     cv::Mat img;
-    double newwidth = (540.0 / preimg.size().height) * preimg.size().width;
+    double newwidth = ((double)IMG_HEIGHT / preimg.size().height) * preimg.size().width;
     IMG_WIDTH = newwidth;
     cv::Size s = cv::Size((int) newwidth, 540);
     cv::resize(preimg, img, s);
@@ -313,7 +315,7 @@ main(int argc, char** argv)
 
 		for (int i = 0; i < 7; i++) {
 			std::stringstream path;
-			path << "images/" << "image_" << (i+1) << ".jpg";
+			path << "../../../images/" << "image_" << (i+1) << ".jpg";
 			std::string image_path = cv::samples::findFile(path.str());
 			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
 			if (img.empty())
@@ -341,7 +343,7 @@ main(int argc, char** argv)
 			{
 				
 				::aruco::CameraParameters cam;
-				cam.readFromXMLFile("extern/out_camera_data.xml");
+				cam.readFromXMLFile("../../../extern/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
@@ -355,37 +357,17 @@ main(int argc, char** argv)
 					cv::aruco::drawAxis(frames[i], cameraMatrix, distCoeffs, rvec, tvec, 0.1);
 				}*/
 
-				//Perform PNP
-				std::vector<cv::Point2d> imagePoints;
-				std::vector<cv::Point3d> objectPoints;
-				for (int& id : ids)
-				{
-					for (unsigned x = 0; x < 4; x++)
-					{
-						objectPoints.push_back(objectCoordMap[id][x]);
-					}
-				}
-				for (unsigned idx = 0; idx < ids.size(); idx++)
-				{
-					for (unsigned x = 0; x < 4; x++)
-					{
-						imagePoints.push_back(corners[idx][x]);
-					}
-				}
+                auto cameraPos = findCameraPos(objectCoordMap, corners, ids, cameraMatrix, distCoeffs);
 
-				cv::Mat cameraRVec, cameraTVec;
-				cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
-
-				std::cout << "Camera Rotation:\n" << cameraRVec << "\n";
-				std::cout << "Camera Translation:\n" << cameraTVec << "\n";
-
+                //std::cout << "Camera Rotation:\n" << cameraPos.first * 180 / M_PI << "\n";
+                //std::cout << "Camera Translation:\n" << cameraPos.second << "\n";
 				camera c;
 				c.Image = img;
-				c.R = cameraMatrix;
-				c.t = cameraTVec;
-				c.t.convertTo(c.t, 5);
+				c.R = cameraPos.first;
+				c.t = cameraPos.second;
 				hconcat(c.R, c.t, c.P);
-				cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0,0,0,1});
+                c.P.convertTo(c.P, 5);
+				cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0.0,0.0,0.0,1.0});
 				vconcat(c.P, lowerRank, c.P);
 				c.Silhouette = silhouette;
 				cameras.push_back(c);
@@ -399,23 +381,29 @@ main(int argc, char** argv)
 			//cv::waitKey(0);
 
 		}	
-		//NEEWW
-		/* bounding box dimensions of squirrel */
-		float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
-		float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
+        /* bounding box dimensions of object */
+        //Original dimensions:
+        //float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
+        //float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
-		float bbwidth = std::abs(xmax - xmin) * 1.15;
-		float bbheight = std::abs(ymax - ymin) * 1.15;
-		float bbdepth = std::abs(zmax - zmin) * 1.05;
+        float xmin = 0, ymin = 0, zmin = 0;
+        float xmax = 1200, ymax = 700, zmax = 700;
 
-		startParams params;
-		params.startX = xmin - std::abs(xmax - xmin) * 0.15;
-		params.startY = ymin - std::abs(ymax - ymin) * 0.15;
-		params.startZ = 0.0f;
-		params.voxelWidth = bbwidth / VOXEL_DIM;
-		params.voxelHeight = bbheight / VOXEL_DIM;
-		params.voxelDepth = bbdepth / VOXEL_DIM;
+        float bbwidth = std::abs(xmax - xmin) * 1.15;
+        float bbheight = std::abs(ymax - ymin) * 1.15;
+        float bbdepth = std::abs(zmax - zmin) * 1.05;
 
+        startParams params;
+        //original:
+        //params.startX = xmin - bbwidth;
+        params.startX = xmin;
+        //original:
+        //params.startY = ymin - bbheight;
+        params.startY = ymin;
+        params.startZ = 0.0f;
+        params.voxelWidth = bbwidth / VOXEL_DIM;
+        params.voxelHeight = bbheight / VOXEL_DIM;
+        params.voxelDepth = bbdepth / VOXEL_DIM;
 		/* 3 dimensional voxel grid */
 		float* fArray = new float[VOXEL_SIZE];
 		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
@@ -423,17 +411,22 @@ main(int argc, char** argv)
 		/* carving model for every given camera image */
 		for (int i = 0; i < 7; i++) {
 			std::cout << cameras.at(i).P;
+			std::cout << "\n";
 			carve(fArray, params, cameras.at(i));
 		}
-
+        for (int i = 128 * 128 * 70; i < 128 * 128 * 70 + 200; i++) {
+            std::cout << fArray[i];
+            std::cout << "\n";
+        }
 		/* show example of segmented image */
 		cv::Mat original, segmented;
 		original = resizeImg(cameras.at(1).Image);
 		segmented = resizeImg(cameras.at(1).Silhouette);
 		cv::imshow("Squirrel", original);
 		cv::imshow("Squirrel Silhouette", segmented);
+        renderModel(fArray, params);
 		cv::waitKey(0);
-		//NEWEND
+           
 	}
 	catch (std::exception& ex)
 	{
