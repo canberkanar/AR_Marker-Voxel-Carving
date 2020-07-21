@@ -82,7 +82,7 @@ cv::Mat resizeImg(cv::Mat preimg) {
     cv::Mat img;
     double newwidth = ((double)IMG_HEIGHT / preimg.size().height) * preimg.size().width;
     IMG_WIDTH = newwidth;
-    cv::Size s = cv::Size((int) newwidth, 540);
+    cv::Size s = cv::Size((int) newwidth, IMG_HEIGHT);
     cv::resize(preimg, img, s);
     return img;
 }
@@ -139,12 +139,19 @@ void carve(float fArray[], startParams params, camera cam) {
 
 	cv::Mat silhouette, distImage;
 	//edge detector, output in silhouette
-	cv::Canny(cam.Silhouette, silhouette, 0, 255);
+	//cv::Canny(cam.Silhouette, silhouette, 0, 255);
+	cv::threshold(cam.Silhouette, silhouette, 100, 255, THRESH_BINARY);
+	//silhouette = cam.Silhouette;
 	//inverts every bit
-	cv::bitwise_not(silhouette, silhouette);
+	//cv::bitwise_not(silhouette, silhouette);
 	//Calculates the distance to the closest zero pixel for each pixel of the source image.
 	//using CV_DIST_L2 as 3rd argument
-	cv::distanceTransform(silhouette, distImage, 2, 3);
+	cv::distanceTransform(silhouette, distImage, CV_DIST_L2, 3);
+	// show images for debugging
+	//cv::imshow("sil cam", cam.Silhouette);
+	//cv::imshow("sil", silhouette);
+	//cv::normalize(distImage, distImage, 0, 1.0, NORM_MINMAX);
+	//cv::imshow("dist", distImage);
 
 	for (int i = 0; i < VOXEL_DIM; i++) {
 		for (int j = 0; j < VOXEL_DIM; j++) {
@@ -354,11 +361,18 @@ int main(int argc, char* argv[]) {
 	//std::cout<< "Distortion Coeffs\n" << camParams.second << "\n";
 
 		for (int i = 0; i < 7; i++) {
-			std::stringstream path;
-			path << "../../../images/" << "image_" << (i+1) << ".jpg";
+			std::stringstream path, path_bg;
+			path << "../../../images/" << "image_" << (i + 1) << ".jpg";
+			path_bg << "../../../images/" << "image_" << (i + 1) << ".jpg";
+			//path << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+8) << ".jpg";
+			//path_bg << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+1) << ".jpg";
 			std::string image_path = cv::samples::findFile(path.str());
+			std::string image_bg_path = cv::samples::findFile(path_bg.str());
+
 			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
-			if (img.empty())
+			cv::Mat bg = cv::imread(image_bg_path, cv::IMREAD_COLOR);
+
+			if (img.empty() || bg.empty())
 			{
 				std::cout << "Could not read the image: " << path.str() << std::endl;
 				return 1;
@@ -369,10 +383,12 @@ int main(int argc, char* argv[]) {
 			
 			cv::Mat silhouette;
 			//using CV_BGR2HSV for 40
-			cv::cvtColor(img, silhouette, 40);
+			//cv::cvtColor(img, silhouette, 40);
 			//Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
-			cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
-
+			//cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
+			cv::Ptr<cv::BackgroundSubtractor> pBackSub = cv::createBackgroundSubtractorMOG2();
+			pBackSub->apply(bg, silhouette);
+			pBackSub->apply(img, silhouette);
 			
 			// Detect markers in frame
 			std::vector<int> ids;
@@ -384,6 +400,7 @@ int main(int argc, char* argv[]) {
 				
 				::aruco::CameraParameters cam;
 				cam.readFromXMLFile("../../../extern/out_camera_data.xml");
+				//cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/extern/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
@@ -399,17 +416,21 @@ int main(int argc, char* argv[]) {
 
                 auto cameraPos = findCameraPos(objectCoordMap, corners, ids, cameraMatrix, distCoeffs);
 
-                //std::cout << "Camera Rotation:\n" << cameraPos.first * 180 / M_PI << "\n";
-                //std::cout << "Camera Translation:\n" << cameraPos.second << "\n";
+				std::cout << "Camera Matrix:\n" << cameraMatrix << "\n";
+                std::cout << "Camera Rotation:\n" << cameraPos.first << "\n";
+                std::cout << "Camera Translation:\n" << cameraPos.second << "\n";
+
 				camera c;
-				c.Image = img;
+				c.Image = resizeImg(img);
+				c.K = cameraMatrix;
 				c.R = cameraPos.first;
 				c.t = cameraPos.second;
 				hconcat(c.R, c.t, c.P);
-                c.P.convertTo(c.P, 5);
-				cv::Mat lowerRank = cv::Mat(1, 4, CV_32F, {0.0,0.0,0.0,1.0});
-				vconcat(c.P, lowerRank, c.P);
-				c.Silhouette = silhouette;
+				c.K.convertTo(c.K, CV_32FC1);
+				c.P.convertTo(c.P, CV_32FC1);
+				c.P = c.K * c.P;
+
+				c.Silhouette = resizeImg(silhouette);
 				cameras.push_back(c);
 
 				
@@ -426,8 +447,8 @@ int main(int argc, char* argv[]) {
         //float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
         //float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
-        float xmin = 0, ymin = 0, zmin = 0;
-        float xmax = 1200, ymax = 700, zmax = 700;
+        float xmin = -200, ymin = -150, zmin = -100;
+        float xmax = 200, ymax = 150, zmax = 100;
 
         float bbwidth = std::abs(xmax - xmin) * 1.15;
         float bbheight = std::abs(ymax - ymin) * 1.15;
@@ -441,13 +462,14 @@ int main(int argc, char* argv[]) {
         //params.startY = ymin - bbheight;
         params.startY = ymin;
         params.startZ = 0.0f;
+		//params.startZ = zmin-bbdepth;
         params.voxelWidth = bbwidth / VOXEL_DIM;
         params.voxelHeight = bbheight / VOXEL_DIM;
         params.voxelDepth = bbdepth / VOXEL_DIM;
 		/* 3 dimensional voxel grid */
 		float* fArray = new float[VOXEL_SIZE];
 		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
-
+		//unsigned char* fArray = new unsigned char[VOXEL_SIZE];
 		/* carving model for every given camera image */
 		for (int i = 0; i < 7; i++) {
 			std::cout << cameras.at(i).P;
@@ -460,8 +482,8 @@ int main(int argc, char* argv[]) {
         }
 		/* show example of segmented image */
 		cv::Mat original, segmented;
-		original = resizeImg(cameras.at(1).Image);
-		segmented = resizeImg(cameras.at(1).Silhouette);
+		original = resizeImg(cameras.at(4).Image);
+		segmented = resizeImg(cameras.at(4).Silhouette);
 		cv::imshow("Squirrel", original);
 		cv::imshow("Squirrel Silhouette", segmented);
         renderModel(fArray, params);

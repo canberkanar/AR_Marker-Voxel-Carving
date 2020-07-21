@@ -34,7 +34,7 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 	cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, cameraRVec, cameraTVec);
 
 	// Must convert from camera translation to world translation: https://stackoverflow.com/questions/18637494/camera-position-in-world-coordinate-from-cvsolvepnp
-//	std::cout  << "Translation:\n" << cameraTVec << "\n";
+	//std::cout  << "Translation:\n" << cameraTVec << "\n";
 //	std::cout  << "Translation:\n" << cameraTVec.size << "\n";
 
 	cv::Mat pose = cv::Mat::eye(4, 4, cameraRVec.type());
@@ -45,30 +45,30 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 
 //	std::cout << "Rotation:\n" << rotation << "\n";
 
-	for (int x = 0; x < 3; x++)
-	{
-		for (int y = 0; y < 3; y++)
-		{
-			pose.at<double>(x, y) = rotation.at<double>(x, y);
-		}
-	}
-//	std::cout  << "Assigning rotation:\n" << pose << "\n";
-
-	for (int x = 0; x < 3; x++)
-	{
-		pose.at<double>(x, 3) = cameraTVec.at<double>(x, 0);
-	}
-//	std::cout  << "Assigning Translation:\n" << pose << "\n";
-
-	pose = pose.inv();
-//	std::cout  << "Inversion:\n" << pose << "\n";
-
-	for (int x = 0; x < 3; x++)
-	{
-		cameraTVec.at<double>(x, 0) = pose.at<double>(x, 3);
-	}
-
-	rotation = pose(cv::Range(0, 3), cv::Range(0, 3));
+//	for (int x = 0; x < 3; x++)
+//	{
+//		for (int y = 0; y < 3; y++)
+//		{
+//			pose.at<double>(x, y) = rotation.at<double>(x, y);
+//		}
+//	}
+////	std::cout  << "Assigning rotation:\n" << pose << "\n";
+//
+//	for (int x = 0; x < 3; x++)
+//	{
+//		pose.at<double>(x, 3) = cameraTVec.at<double>(x, 0);
+//	}
+////	std::cout  << "Assigning Translation:\n" << pose << "\n";
+//
+//	pose = pose.inv();
+////	std::cout  << "Inversion:\n" << pose << "\n";
+//
+//	for (int x = 0; x < 3; x++)
+//	{
+//		cameraTVec.at<double>(x, 0) = pose.at<double>(x, 3);
+//	}
+//
+//	rotation = pose(cv::Range(0, 3), cv::Range(0, 3));
 //	std::cout  << "Extracted Rotation:\n" << rotation << "\n";
 
 
