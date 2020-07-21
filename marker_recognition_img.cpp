@@ -362,7 +362,7 @@ int main(int argc, char* argv[]) {
 
 		for (int i = 0; i < 7; i++) {
 			std::stringstream path, path_bg;
-			path << "../../../images/" << "image_" << (i + 1) << ".jpg";
+			path << "../../../images/" << "image_" << (i + 8) << ".jpg";
 			path_bg << "../../../images/" << "image_" << (i + 1) << ".jpg";
 			//path << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+8) << ".jpg";
 			//path_bg << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+1) << ".jpg";
@@ -399,8 +399,8 @@ int main(int argc, char* argv[]) {
 			{
 				
 				::aruco::CameraParameters cam;
-				cam.readFromXMLFile("../../../extern/out_camera_data.xml");
-				//cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/extern/out_camera_data.xml");
+				//cam.readFromXMLFile("../../../extern/out_camera_data.xml");
+				cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/extern/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
