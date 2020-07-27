@@ -40,12 +40,13 @@ using namespace std;
 //Put in "Line;" to print the program line number
 #define LINE std::cout<<__LINE__ << "\n"
 
-int IMG_WIDTH = 640;
-const int IMG_HEIGHT = 480;
-const int VOXEL_DIM = 300;
+int IMG_WIDTH = 504;
+const int IMG_HEIGHT = 378;
+const int VOXEL_DIM = 128;
 const int VOXEL_SIZE = VOXEL_DIM * VOXEL_DIM * VOXEL_DIM;
 const int VOXEL_SLICE = VOXEL_DIM * VOXEL_DIM;
 const int OUTSIDE = 0;
+const int NUM_IMAGE = 8;
 
 struct voxel {
 	float xpos;
@@ -355,22 +356,23 @@ int main(int argc, char* argv[]) {
 
 	cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
-	Mat frames[7];
+	Mat frames[NUM_IMAGE];
 	//auto camParams = readCameraConfigFromFile("../images/bosebag/out_camera_data.xml");
 	//std::cout<< "Camera Matrix\n" << camParams.first << "\n";
 	//std::cout<< "Distortion Coeffs\n" << camParams.second << "\n";
 
-		for (int i = 0; i < 7; i++) {
+		for (int i = 0; i < NUM_IMAGE; i++) {
 			std::stringstream path, path_bg;
-			path << "../../../images/" << "image_" << (i + 8) << ".jpg";
-			path_bg << "../../../images/" << "image_" << (i + 1) << ".jpg";
-			//path << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+8) << ".jpg";
-			//path_bg << "C:/Users/mayay/source/repos/ARVoxelCarving/images/" << "image_" << (i+1) << ".jpg";
+			path << "../../../images/maya3/" << "img_" << i << ".jpg";
+			path_bg << "../../../images/maya3/" << "bg_" << i << ".jpg";
+
+			//path << "C:/Users/mayay/source/repos/ARVoxelCarving/images/maya3/" << "img_" << i << ".jpg";
+			//path_bg << "C:/Users/mayay/source/repos/ARVoxelCarving/images/maya3/" << "bg_" << i << ".jpg";
 			std::string image_path = cv::samples::findFile(path.str());
 			std::string image_bg_path = cv::samples::findFile(path_bg.str());
 
-			cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
-			cv::Mat bg = cv::imread(image_bg_path, cv::IMREAD_COLOR);
+			cv::Mat img = cv::imread(image_path);
+			cv::Mat bg = cv::imread(image_bg_path);
 
 			if (img.empty() || bg.empty())
 			{
@@ -378,6 +380,12 @@ int main(int argc, char* argv[]) {
 				return 1;
 			}
 			frames[i] = resizeImg(img);
+
+
+			//cvtColor(img, img, CV_BGR2GRAY);
+			//threshold(img, img, 40, 255, THRESH_BINARY | THRESH_OTSU);
+			//cvtColor(bg, bg, CV_BGR2GRAY);
+			//threshold(bg, bg, 40, 255, THRESH_BINARY | THRESH_OTSU);
 
 			/* silhouette */
 			
@@ -389,6 +397,7 @@ int main(int argc, char* argv[]) {
 			cv::Ptr<cv::BackgroundSubtractor> pBackSub = cv::createBackgroundSubtractorMOG2();
 			pBackSub->apply(bg, silhouette);
 			pBackSub->apply(img, silhouette);
+			//cvtColor(bg, silhouette, CV_BGR2GRAY);
 			
 			// Detect markers in frame
 			std::vector<int> ids;
@@ -399,8 +408,8 @@ int main(int argc, char* argv[]) {
 			{
 				
 				::aruco::CameraParameters cam;
-				//cam.readFromXMLFile("../../../extern/out_camera_data.xml");
-				cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/extern/out_camera_data.xml");
+				cam.readFromXMLFile("../../../images/maya3/out_camera_data.xml");
+				//cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/images/maya3/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
@@ -447,12 +456,12 @@ int main(int argc, char* argv[]) {
         //float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
         //float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
-        float xmin = -200, ymin = -150, zmin = -100;
-        float xmax = 200, ymax = 150, zmax = 100;
+        float xmin = 0, ymin = 0, zmin = 0;
+        float xmax = 60, ymax = 70, zmax = 50;
 
-        float bbwidth = std::abs(xmax - xmin) * 1.15;
-        float bbheight = std::abs(ymax - ymin) * 1.15;
-        float bbdepth = std::abs(zmax - zmin) * 1.05;
+        float bbwidth = std::abs(xmax - xmin);
+        float bbheight = std::abs(ymax - ymin);
+        float bbdepth = std::abs(zmax - zmin);
 
         startParams params;
         //original:
@@ -461,7 +470,7 @@ int main(int argc, char* argv[]) {
         //original:
         //params.startY = ymin - bbheight;
         params.startY = ymin;
-        params.startZ = 0.0f;
+        params.startZ = zmin;
 		//params.startZ = zmin-bbdepth;
         params.voxelWidth = bbwidth / VOXEL_DIM;
         params.voxelHeight = bbheight / VOXEL_DIM;
@@ -471,19 +480,15 @@ int main(int argc, char* argv[]) {
 		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
 		//unsigned char* fArray = new unsigned char[VOXEL_SIZE];
 		/* carving model for every given camera image */
-		for (int i = 0; i < 7; i++) {
+		for (int i = 0; i < NUM_IMAGE; i++) {
 			std::cout << cameras.at(i).P;
 			std::cout << "\n";
 			carve(fArray, params, cameras.at(i));
 		}
-        for (int i = 128 * 128 * 70; i < 128 * 128 * 70 + 200; i++) {
-            std::cout << fArray[i];
-            std::cout << "\n";
-        }
 		/* show example of segmented image */
 		cv::Mat original, segmented;
-		original = resizeImg(cameras.at(4).Image);
-		segmented = resizeImg(cameras.at(4).Silhouette);
+		original = resizeImg(cameras.at(1).Image);
+		segmented = resizeImg(cameras.at(1).Silhouette);
 		cv::imshow("Squirrel", original);
 		cv::imshow("Squirrel Silhouette", segmented);
         renderModel(fArray, params);

@@ -16,22 +16,22 @@
 
 // I have arbitrarily defined the distances between voxels to be 100, because in the original image they are 100 pixels apart. We may need to find new offsets.
 // It seems that moving the camera 1 cm in the X-Y direction produces a different distance change than moving it in the Z direction.
-static std::unordered_map<int, std::vector<cv::Point3d>> objectCoordMap {{0, {cv::Point3d(0, 0, 0), cv::Point3d(10, 0, 0), cv::Point3d(10, 10, 0), cv::Point3d(0, 10, 0)}},
-															{1, {cv::Point3d(20, 0, 0), cv::Point3d(30, 0, 0), cv::Point3d(30, 10, 0), cv::Point3d(20, 10, 0)}},
-															{2, {cv::Point3d(40, 0, 0), cv::Point3d(50, 0, 0), cv::Point3d(50, 10, 0), cv::Point3d(40, 10, 0)}},
-															{3, {cv::Point3d(60, 0, 0), cv::Point3d(70, 0, 0), cv::Point3d(70, 10, 0), cv::Point3d(60, 10, 0)}},
-															{4, {cv::Point3d(80, 0, 0), cv::Point3d(90, 0, 0), cv::Point3d(90, 10, 0), cv::Point3d(80, 10, 0)}},
-															{5, {cv::Point3d(100, 0, 0), cv::Point3d(110, 0, 0), cv::Point3d(110, 10, 0), cv::Point3d(100, 10, 0)}},
-															{6, {cv::Point3d(0, 20, 0), cv::Point3d(10, 20, 0), cv::Point3d(10, 30, 0), cv::Point3d(0, 30, 0)}},
-															{7, {cv::Point3d(100, 20, 0), cv::Point3d(110, 20, 0), cv::Point3d(110, 30, 0), cv::Point3d(100, 30, 0)}},
-															{8, {cv::Point3d(0, 40, 0), cv::Point3d(10, 40, 0), cv::Point3d(10, 50, 0), cv::Point3d(0, 50, 0)}},
-															{9, {cv::Point3d(100, 40, 0), cv::Point3d(110, 40, 0), cv::Point3d(110, 50, 0), cv::Point3d(100, 50, 0)}},
-															{10, {cv::Point3d(0, 60, 0), cv::Point3d(10, 60, 0), cv::Point3d(10, 70, 0), cv::Point3d(0, 60, 0)}},
-															{11, {cv::Point3d(20, 60, 0), cv::Point3d(30, 60, 0), cv::Point3d(30, 70, 0), cv::Point3d(20, 70, 0)}},
-															{12, {cv::Point3d(40, 60, 0), cv::Point3d(50, 60, 0), cv::Point3d(50, 70, 0), cv::Point3d(40, 70, 0)}},
-															{13, {cv::Point3d(60, 60, 0), cv::Point3d(70, 60, 0), cv::Point3d(70, 70, 0), cv::Point3d(60, 70, 0)}},
-															{14, {cv::Point3d(80, 60, 0), cv::Point3d(90, 60, 0), cv::Point3d(90, 70, 0), cv::Point3d(80, 70, 0)}},
-															{15, {cv::Point3d(100, 60, 0), cv::Point3d(110, 60, 0), cv::Point3d(110, 70, 0), cv::Point3d(100, 70, 0)}}
+static std::unordered_map<int, std::vector<cv::Point3d>> objectCoordMap {{0, {cv::Point3d(0, 70, 50), cv::Point3d(0, 70, 40), cv::Point3d(0, 60, 40), cv::Point3d(0, 60, 50)}},
+															{1, {cv::Point3d(0, 70, 30), cv::Point3d(0, 70, 20), cv::Point3d(0, 60, 20), cv::Point3d(0, 60, 30)}},
+															{2, {cv::Point3d(0, 70, 10), cv::Point3d(0, 70, 0), cv::Point3d(0, 60, 0), cv::Point3d(0, 60, 10)}},
+															{3, {cv::Point3d(10, 70, 0), cv::Point3d(20, 70, 0), cv::Point3d(20, 60, 0), cv::Point3d(10, 60, 0)}},
+															{4, {cv::Point3d(30, 70, 0), cv::Point3d(40, 70, 0), cv::Point3d(40, 60, 0), cv::Point3d(30, 60, 0)}},
+															{5, {cv::Point3d(50, 70, 0), cv::Point3d(60, 70, 0), cv::Point3d(60, 60, 0), cv::Point3d(50, 60, 0)}},
+															{6, {cv::Point3d(0, 50, 50), cv::Point3d(0, 50, 40), cv::Point3d(0, 40, 40), cv::Point3d(0, 40, 50)}},
+															{7, {cv::Point3d(50, 50, 0), cv::Point3d(60, 50, 0), cv::Point3d(60, 40, 0), cv::Point3d(50, 40, 0)}},
+															{8, {cv::Point3d(0, 30, 50), cv::Point3d(0, 30, 40), cv::Point3d(0, 20, 40), cv::Point3d(0, 20, 50)}},
+															{9, {cv::Point3d(50, 30, 0), cv::Point3d(60, 30, 0), cv::Point3d(60, 20, 0), cv::Point3d(50, 20, 0)}},
+															{10, {cv::Point3d(0, 10, 50), cv::Point3d(0, 10, 40), cv::Point3d(0, 0, 40), cv::Point3d(0, 0, 50)}},
+															{11, {cv::Point3d(0, 10, 30), cv::Point3d(0, 10, 20), cv::Point3d(0, 0, 20), cv::Point3d(0, 0, 30)}},
+															{12, {cv::Point3d(0, 10, 10), cv::Point3d(0, 10, 0), cv::Point3d(0, 0, 0), cv::Point3d(0, 0, 10)}},
+															{13, {cv::Point3d(10, 10, 0), cv::Point3d(20, 10, 0), cv::Point3d(20, 0, 0), cv::Point3d(10, 0, 0)}},
+															{14, {cv::Point3d(30, 10, 0), cv::Point3d(40, 10, 0), cv::Point3d(40, 0, 0), cv::Point3d(30, 0, 0)}},
+															{15, {cv::Point3d(50, 10, 0), cv::Point3d(60, 10, 0), cv::Point3d(60, 0, 0), cv::Point3d(50, 0, 0)}}
 };
 
 #endif //HELLOAR_POINTSOBJECTCOORD_H
