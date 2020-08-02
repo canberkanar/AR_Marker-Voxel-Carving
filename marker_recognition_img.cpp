@@ -44,8 +44,6 @@ int IMG_WIDTH = 504;
 const int IMG_HEIGHT = 378;
 const int VOXEL_DIM = 128;
 const int VOXEL_SIZE = VOXEL_DIM * VOXEL_DIM * VOXEL_DIM;
-const int VOXEL_SLICE = VOXEL_DIM * VOXEL_DIM;
-const int OUTSIDE = 0;
 const int NUM_IMAGE = 8;
 
 struct voxel {
@@ -92,7 +90,7 @@ coord project(camera cam, voxel v) {
 
 	coord im;
 
-	/* project voxel into camera image coords */
+	// voxel projection with to image
 	float z = cam.P.at<float>(2, 0) * v.xpos +
 			  cam.P.at<float>(2, 1) * v.ypos +
 			  cam.P.at<float>(2, 2) * v.zpos +
@@ -124,27 +122,13 @@ void subtract_background(cv::Mat img) {
 	rectangle(img, cv::Point(10, 2), cv::Point(100, 20),
 			  cv::Scalar(255, 255, 255), -1);
 	stringstream ss;
-	/*ss << img.get(CAP_PROP_POS_FRAMES);
-	string frameNumberString = ss.str();
-	putText(img, frameNumberString.c_str(), cv::Point(15, 15),
-		FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));*/
-	//show the current frame and the fg masks
-	//imshow("Frame", img);
-	//imshow("FG Mask", fgMask);
-	//cv::waitKey(0);
-
 	return;
 }
 
 void carve(float fArray[], startParams params, camera cam) {
 
 	cv::Mat silhouette, distImage;
-	//edge detector, output in silhouette
-	//cv::Canny(cam.Silhouette, silhouette, 0, 255);
 	cv::threshold(cam.Silhouette, silhouette, 100, 255, THRESH_BINARY);
-	//silhouette = cam.Silhouette;
-	//inverts every bit
-	//cv::bitwise_not(silhouette, silhouette);
 	//Calculates the distance to the closest zero pixel for each pixel of the source image.
 	//using CV_DIST_L2 as 3rd argument
 	cv::distanceTransform(silhouette, distImage, CV_DIST_L2, 3);
@@ -166,18 +150,22 @@ void carve(float fArray[], startParams params, camera cam) {
 				v.value = 1.0f;
 
 				coord im = project(cam, v);
+				//if pixel is not in the image
 				float dist = -1.0f;
 
 				/* test if projected voxel is within image coords */
 				if (im.x > 0 && im.y > 0 && im.x < IMG_WIDTH && im.y < IMG_HEIGHT) {
 					dist = distImage.at<float>(im.y, im.x);
-					if (cam.Silhouette.at<uchar>(im.y, im.x) == OUTSIDE) {
+					//Optional: filter out single pixels that are accidentally mapped to foreground
+					//if (dist < 0.05)
+						//dist = 0;
+					if (cam.Silhouette.at<uchar>(im.y, im.x) == 0) {
 						dist *= -1.0f;
 					}
 				}
-
-				if (dist < fArray[i * VOXEL_SLICE + j * VOXEL_DIM + k]) {
-					fArray[i * VOXEL_SLICE + j * VOXEL_DIM + k] = dist;
+				//carve away if part of background
+				if (dist < fArray[i * VOXEL_DIM * VOXEL_DIM + j * VOXEL_DIM + k]) {
+					fArray[i * VOXEL_DIM * VOXEL_DIM + j * VOXEL_DIM + k] = dist;
 				}
 
 			}
@@ -194,7 +182,6 @@ void renderModel(float fArray[], startParams params) {
 	sPoints->SetDimensions(VOXEL_DIM, VOXEL_DIM, VOXEL_DIM);
 	sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
 	sPoints->SetOrigin(params.startZ, params.startY, params.startX);
-	//sPoints->SetScalarTypeToFloat();
 
 	vtkSmartPointer<vtkFloatArray> vtkFArray = vtkSmartPointer<vtkFloatArray>::New();
 	vtkFArray->SetNumberOfValues(VOXEL_SIZE);
@@ -202,153 +189,41 @@ void renderModel(float fArray[], startParams params) {
 
 	sPoints->GetPointData()->SetScalars(vtkFArray);
 	sPoints->GetPointData()->Update();
-	//sPoints->Update();
 
-	/* create iso surface with marching cubes algorithm */
-
+	//use marching cubes algorithm from lecture
 	vtkSmartPointer<vtkMarchingCubes> mcSource = vtkSmartPointer<vtkMarchingCubes>::New();
 	mcSource->SetInputData(sPoints);
 	mcSource->SetNumberOfContours(1);
 	mcSource->SetValue(0, 0.5);
 	mcSource->Update();
 
-	/* recreate mesh topology and merge vertices */
-
 	vtkSmartPointer<vtkCleanPolyData> cleanPolyData = vtkSmartPointer<vtkCleanPolyData>::New();
 	cleanPolyData->SetInputConnection(mcSource->GetOutputPort());
 	cleanPolyData->Update();
-
-	/* usual render stuff */
-
-	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-	renderer->SetBackground(.45, .45, .9);
-	renderer->SetBackground2(.0, .0, .0);
-	renderer->GradientBackgroundOn();
-
-	vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
-	renderWindow->AddRenderer(renderer);
-	vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
-	interactor->SetRenderWindow(renderWindow);
-
 	vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
 	mapper->SetInputConnection(cleanPolyData->GetOutputPort());
+
 	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
 
 	actor->SetMapper(mapper);
 
-	/* visible light properties */
+	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+	renderer->GradientBackgroundOn();
+	renderer->SetBackground(.45, .45, .8);
+	renderer->SetBackground2(.0, .0, .0);
 
-	actor->GetProperty()->SetSpecular(0.15);
-	actor->GetProperty()->SetInterpolationToPhong();
+	vtkSmartPointer<vtkRenderWindow> renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
+	renderWindow->AddRenderer(renderer);
+	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+	renderWindowInteractor->SetRenderWindow(renderWindow);
+
+	actor->GetProperty()->SetSpecular(0.2);
 	renderer->AddActor(actor);
 
+	//Render the scene
 	renderWindow->Render();
-	interactor->Start();
+	renderWindowInteractor->Start();
 }
-
-void exportModel(char* filename, vtkPolyData* polyData) {
-
-
-
-	/* exports 3d model in ply format */
-
-	vtkSmartPointer<vtkPLYWriter> plyExporter = vtkSmartPointer<vtkPLYWriter>::New();
-
-	plyExporter->SetFileName(filename);
-
-	plyExporter->SetInputData(polyData);
-
-	plyExporter->Update();
-
-	plyExporter->Write();
-
-}
-
-// For comparison
-//int main(int argc, char* argv[]) {
-//
-//	/* acquire camera images, silhouettes and camera matrix */
-//	std::vector<camera> cameras;
-//	cv::FileStorage fs("/tmp/Voxel-Carving/assets/viff.xml", cv::FileStorage::READ);
-//	for (int i=0; i<36; i++) {
-//
-//		/* camera image */
-//		std::stringstream simg;
-//		simg << "/tmp/Voxel-Carving/assets/image_" << i << ".jpg";
-//		cv::Mat img = cv::imread(simg.str());
-//
-//		/* silhouette */
-//		cv::Mat silhouette;
-//		cv::cvtColor(img, silhouette, CV_BGR2HSV);
-//		cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255,255,255), silhouette);
-//
-//		/* camera matrix */
-//		std::stringstream smat;
-//		smat << "viff" << std::setfill('0') << std::setw(3) << i << "_matrix";
-//		cv::Mat P;
-//		fs[smat.str()] >> P;
-//
-//		/* decompose proj matrix to cam- and rot matrix and trans vect */
-//		cv::Mat K, R, t;
-//		cv::decomposeProjectionMatrix(P, K, R, t);
-//		K = cv::Mat::eye(3, 3, CV_32FC1);
-//		K.at<float>(0,0) = 1680.2631413061415; /* fx */
-//		K.at<float>(1,1) = 1676.1202869984309; /* fy */
-//		K.at<float>(0,2) = 621.59194200994375; /* cx */
-//		K.at<float>(1,2) = 467.7223229477861; /* cy */
-//
-//		camera c;
-//		c.Image = img;
-//		c.P = P;
-//		std::cout << "P:\n" << P << "\n";
-//		c.K = K;
-//		std::cout << "K:\n" << K << "\n";
-//		c.R = R;
-//		std::cout << "R:\n" << R << "\n";
-//		c.t = t;
-//		std::cout << "T:\n" << t << "\n";
-//		c.Silhouette = silhouette;
-//
-//		cameras.push_back(c);
-//	}
-//
-//	/* bounding box dimensions of squirrel */
-//	float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
-//	float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
-//
-//	float bbwidth = std::abs(xmax-xmin)*1.15;
-//	float bbheight = std::abs(ymax-ymin)*1.15;
-//	float bbdepth = std::abs(zmax-zmin)*1.05;
-//
-//	startParams params;
-//	params.startX = xmin-std::abs(xmax-xmin)*0.15;
-//	params.startY = ymin-std::abs(ymax-ymin)*0.15;
-//	params.startZ = 0.0f;
-//	params.voxelWidth = bbwidth/VOXEL_DIM;
-//	params.voxelHeight = bbheight/VOXEL_DIM;
-//	params.voxelDepth = bbdepth/VOXEL_DIM;
-//
-//	/* 3 dimensional voxel grid */
-//	float *fArray = new float[VOXEL_SIZE];
-//	std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
-//
-//	/* carving model for every given camera image */
-//	for (int i=0; i<36; i++) {
-//		carve(fArray, params, cameras.at(i));
-//	}
-//
-//	/* show example of segmented image */
-//	cv::Mat original, segmented;
-//	cv::resize(cameras.at(1).Image, original, cv::Size(640, 480));
-//	cv::resize(cameras.at(1).Silhouette, segmented, cv::Size(640, 480));
-//	cv::imshow("Squirrel" , original);
-//	cv::imshow("Squirrel Silhouette", segmented);
-//
-//	renderModel(fArray, params);
-//
-//	return 0;
-//}
-
 
 int main(int argc, char* argv[]) {
 	std::vector<camera> cameras;
@@ -357,10 +232,7 @@ int main(int argc, char* argv[]) {
 	cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
 	Mat frames[NUM_IMAGE];
-	//auto camParams = readCameraConfigFromFile("../images/bosebag/out_camera_data.xml");
-	//std::cout<< "Camera Matrix\n" << camParams.first << "\n";
-	//std::cout<< "Distortion Coeffs\n" << camParams.second << "\n";
-
+	
 		for (int i = 0; i < NUM_IMAGE; i++) {
 			std::stringstream path, path_bg;
 			path << "../../../images/maya3/" << "img_" << i << ".jpg";
@@ -381,22 +253,10 @@ int main(int argc, char* argv[]) {
 			}
 			frames[i] = resizeImg(img);
 
-
-			//cvtColor(img, img, CV_BGR2GRAY);
-			//threshold(img, img, 40, 255, THRESH_BINARY | THRESH_OTSU);
-			//cvtColor(bg, bg, CV_BGR2GRAY);
-			//threshold(bg, bg, 40, 255, THRESH_BINARY | THRESH_OTSU);
-
-			/* silhouette */
-			
 			cv::Mat silhouette;
-			//using CV_BGR2HSV for 40
-			//cv::cvtColor(img, silhouette, 40);
-			//Checks if silhouette array elements lie between the (0,0,30) and 255,255,255
-			//cv::inRange(silhouette, cv::Scalar(0, 0, 30), cv::Scalar(255, 255, 255), silhouette);
-			cv::Ptr<cv::BackgroundSubtractor> pBackSub = cv::createBackgroundSubtractorMOG2();
-			pBackSub->apply(bg, silhouette);
-			pBackSub->apply(img, silhouette);
+			cv::Ptr<cv::BackgroundSubtractor> subtractor = cv::createBackgroundSubtractorMOG2();
+			subtractor->apply(bg, silhouette);
+			subtractor->apply(img, silhouette);
 			//cvtColor(bg, silhouette, CV_BGR2GRAY);
 			
 			// Detect markers in frame
@@ -446,9 +306,6 @@ int main(int argc, char* argv[]) {
 				cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
 			}
 			subtract_background(frames[i]);
-			//cv::namedWindow("Display window", cv::WINDOW_AUTOSIZE);
-			//imshow("Display window", frames[i]);
-			//cv::waitKey(0);
 
 		}	
         /* bounding box dimensions of object */
@@ -456,29 +313,31 @@ int main(int argc, char* argv[]) {
         //float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
         //float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
-        float xmin = 0, ymin = 0, zmin = 0;
-        float xmax = 60, ymax = 70, zmax = 50;
-
-        float bbwidth = std::abs(xmax - xmin);
-        float bbheight = std::abs(ymax - ymin);
-        float bbdepth = std::abs(zmax - zmin);
+		float xStart = 0, xEnd = 60;
+		float yStart = 0, yEnd = 70;
+        float zStart = 0, zEnd = 50;
 
         startParams params;
         //original:
         //params.startX = xmin - bbwidth;
-        params.startX = xmin;
+        params.startX = xStart;
         //original:
         //params.startY = ymin - bbheight;
-        params.startY = ymin;
-        params.startZ = zmin;
-		//params.startZ = zmin-bbdepth;
+        params.startY = yStart;
+        params.startZ = zStart;
+
+		float bbwidth = std::abs(xEnd - xStart);
+		float bbheight = std::abs(yEnd - yStart);
+		float bbdepth = std::abs(zEnd - zStart);
+
         params.voxelWidth = bbwidth / VOXEL_DIM;
         params.voxelHeight = bbheight / VOXEL_DIM;
         params.voxelDepth = bbdepth / VOXEL_DIM;
-		/* 3 dimensional voxel grid */
+
+		//define voxel grid
 		float* fArray = new float[VOXEL_SIZE];
 		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
-		//unsigned char* fArray = new unsigned char[VOXEL_SIZE];
+
 		/* carving model for every given camera image */
 		for (int i = 0; i < NUM_IMAGE; i++) {
 			std::cout << cameras.at(i).P;
@@ -489,8 +348,8 @@ int main(int argc, char* argv[]) {
 		cv::Mat original, segmented;
 		original = resizeImg(cameras.at(1).Image);
 		segmented = resizeImg(cameras.at(1).Silhouette);
-		cv::imshow("Squirrel", original);
-		cv::imshow("Squirrel Silhouette", segmented);
+		cv::imshow("Object", original);
+		cv::imshow("Silhouette", segmented);
         renderModel(fArray, params);
 		cv::waitKey(0);
 		return 0;
