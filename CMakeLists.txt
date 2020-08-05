@@ -11,13 +11,11 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1z")
 find_package(OpenCV REQUIRED)
 find_package(aruco REQUIRED)
 find_package(VTK 8.2 REQUIRED)
-#find_package(Eigen3 REQUIRED)
 
 
 
 link_directories(${OpenCV_LIBRARY_DIRS})
 link_directories(${aruco_LIBRARY_DIRS})
-#message(warn ${VTK_LIBRARIES})
 
 link_directories(${VTK_LIBRARY_DIRS})
 
@@ -28,11 +26,8 @@ add_executable(marker_recognition_img marker_recognition_img.cpp utils.cpp)
 add_executable(camera_calibration extern/camera_calibration.cpp)
 add_executable(marker_generation marker_generation.cpp)
 
-#add_executable(vacancy_main vacancy.cpp utils.cpp)
-
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ${aruco_INCLUDE_DIRS} )
-#include_directories( ${EIGEN3_INCLUDE_DIRS} )
 
 
 
@@ -50,12 +45,11 @@ IF (WIN32)
 ENDIF()
 
 IF(UNIX)
-    target_link_libraries(marker_recognition ${OpenCV_LIBS} aruco)
-    target_link_libraries(background_subtraction ${OpenCV_LIBS} aruco)
+#    target_link_libraries(marker_recognition ${OpenCV_LIBS} aruco)
+#    target_link_libraries(background_subtraction ${OpenCV_LIBS} aruco)
 #    target_link_libraries(pose_estimation ${OpenCV_LIBS} aruco)
     target_link_libraries(camera_calibration ${OpenCV_LIBS} aruco)
     target_link_libraries(marker_generation ${OpenCV_LIBS} aruco)
     target_link_libraries(marker_recognition_img aruco ${OpenCV_LIBS} ${VTK_LIBRARIES})
-#    target_link_libraries(vacancy_main ${OpenCV_LIBS} vacancy)
 ENDIF()
 

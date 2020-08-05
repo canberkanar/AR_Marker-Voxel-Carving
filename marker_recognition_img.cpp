@@ -121,8 +121,6 @@ void subtract_background(cv::Mat img) {
 	//get the frame number and write it on the current frame
 	rectangle(img, cv::Point(10, 2), cv::Point(100, 20),
 			  cv::Scalar(255, 255, 255), -1);
-	stringstream ss;
-	return;
 }
 
 void carve(float fArray[], startParams params, camera cam) {
