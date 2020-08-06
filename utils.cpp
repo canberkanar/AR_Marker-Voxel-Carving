@@ -35,7 +35,6 @@ findCameraPos(const std::unordered_map<int, std::vector<cv::Point3d>>& objectCoo
 
 	// Must convert from camera translation to world translation: https://stackoverflow.com/questions/18637494/camera-position-in-world-coordinate-from-cvsolvepnp
 
-	cv::Mat pose = cv::Mat::eye(4, 4, cameraRVec.type());
 	cv::Mat rotation;
 	cv::Rodrigues(cameraRVec, rotation);
 

@@ -37,7 +37,6 @@ VTK_MODULE_INIT(vtkInteractionStyle);
 
 using namespace cv;
 using namespace std;
-//Put in "Line;" to print the program line number
 #define LINE std::cout<<__LINE__ << "\n"
 
 int IMG_WIDTH = 504;
@@ -77,6 +76,7 @@ struct camera {
 	cv::Mat Silhouette;
 };
 
+// Resize the image for showing it in the opencv window
 cv::Mat resizeImg(cv::Mat preimg) {
     cv::Mat img;
     double newwidth = ((double)IMG_HEIGHT / preimg.size().height) * preimg.size().width;
@@ -90,7 +90,7 @@ coord project(camera cam, voxel v) {
 
 	coord im;
 
-	// voxel projection with to image
+	// Project voxel to image with the projection matrix
 	float z = cam.P.at<float>(2, 0) * v.xpos +
 			  cam.P.at<float>(2, 1) * v.ypos +
 			  cam.P.at<float>(2, 2) * v.zpos +
@@ -109,59 +109,42 @@ coord project(camera cam, voxel v) {
 	return im;
 }
 
-
-void subtract_background(cv::Mat img) {
-
-	//create Background Subtractor objects
-	Ptr<BackgroundSubtractor> pBackSub = createBackgroundSubtractorMOG2();
-	Mat fgMask;
-
-	//update the background model
-	pBackSub->apply(img, fgMask);
-	//get the frame number and write it on the current frame
-	rectangle(img, cv::Point(10, 2), cv::Point(100, 20),
-			  cv::Scalar(255, 255, 255), -1);
-}
-
 void carve(float fArray[], startParams params, camera cam) {
 
 	cv::Mat silhouette, distImage;
 	cv::threshold(cam.Silhouette, silhouette, 100, 255, THRESH_BINARY);
-	//Calculates the distance to the closest zero pixel for each pixel of the source image.
-	//using CV_DIST_L2 as 3rd argument
+
+	// Calculates the signed distance values for each pixel of the source image.
 	cv::distanceTransform(silhouette, distImage, CV_DIST_L2, 3);
-	// show images for debugging
-	//cv::imshow("sil cam", cam.Silhouette);
-	//cv::imshow("sil", silhouette);
-	//cv::normalize(distImage, distImage, 0, 1.0, NORM_MINMAX);
-	//cv::imshow("dist", distImage);
 
 	for (int i = 0; i < VOXEL_DIM; i++) {
 		for (int j = 0; j < VOXEL_DIM; j++) {
 			for (int k = 0; k < VOXEL_DIM; k++) {
 
-				/* calc voxel position inside camera view frustum */
+				// Calculate voxel position 
 				voxel v;
 				v.xpos = params.startX + i * params.voxelWidth;
 				v.ypos = params.startY + j * params.voxelHeight;
 				v.zpos = params.startZ + k * params.voxelDepth;
 				v.value = 1.0f;
 
+				// Project 3d voxel point to 2d
 				coord im = project(cam, v);
-				//if pixel is not in the image
+
 				float dist = -1.0f;
 
-				/* test if projected voxel is within image coords */
+				// Check if projected voxel is within image coords
 				if (im.x > 0 && im.y > 0 && im.x < IMG_WIDTH && im.y < IMG_HEIGHT) {
 					dist = distImage.at<float>(im.y, im.x);
-					//Optional: filter out single pixels that are accidentally mapped to foreground
+					// Optional: filter out single pixels that are accidentally mapped to foreground
 					//if (dist < 0.05)
 						//dist = 0;
+					// If pixel is in the background
 					if (cam.Silhouette.at<uchar>(im.y, im.x) == 0) {
 						dist *= -1.0f;
 					}
 				}
-				//carve away if part of background
+				// Update signed distance values
 				if (dist < fArray[i * VOXEL_DIM * VOXEL_DIM + j * VOXEL_DIM + k]) {
 					fArray[i * VOXEL_DIM * VOXEL_DIM + j * VOXEL_DIM + k] = dist;
 				}
@@ -174,8 +157,7 @@ void carve(float fArray[], startParams params, camera cam) {
 
 void renderModel(float fArray[], startParams params) {
 
-	/* create vtk visualization pipeline from voxel grid (float array) */
-
+	// Create vtk visualization pipeline from voxel grid 
 	vtkSmartPointer<vtkStructuredPoints> sPoints = vtkSmartPointer<vtkStructuredPoints>::New();
 	sPoints->SetDimensions(VOXEL_DIM, VOXEL_DIM, VOXEL_DIM);
 	sPoints->SetSpacing(params.voxelDepth, params.voxelHeight, params.voxelWidth);
@@ -188,13 +170,14 @@ void renderModel(float fArray[], startParams params) {
 	sPoints->GetPointData()->SetScalars(vtkFArray);
 	sPoints->GetPointData()->Update();
 
-	//use marching cubes algorithm from lecture
+	// Use marching cubes algorithm from lecture
 	vtkSmartPointer<vtkMarchingCubes> mcSource = vtkSmartPointer<vtkMarchingCubes>::New();
 	mcSource->SetInputData(sPoints);
 	mcSource->SetNumberOfContours(1);
 	mcSource->SetValue(0, 0.5);
 	mcSource->Update();
 
+	// Clean mesh topology: remove unused points and merge duplicates
 	vtkSmartPointer<vtkCleanPolyData> cleanPolyData = vtkSmartPointer<vtkCleanPolyData>::New();
 	cleanPolyData->SetInputConnection(mcSource->GetOutputPort());
 	cleanPolyData->Update();
@@ -218,7 +201,7 @@ void renderModel(float fArray[], startParams params) {
 	actor->GetProperty()->SetSpecular(0.2);
 	renderer->AddActor(actor);
 
-	//Render the scene
+	// Render the carved model
 	renderWindow->Render();
 	renderWindowInteractor->Start();
 }
@@ -233,11 +216,9 @@ int main(int argc, char* argv[]) {
 	
 		for (int i = 0; i < NUM_IMAGE; i++) {
 			std::stringstream path, path_bg;
-			path << "../../../images/maya3/" << "img_" << i << ".jpg";
-			path_bg << "../../../images/maya3/" << "bg_" << i << ".jpg";
+			path << "../../../images/final_db/" << "img_" << i << ".jpg";
+			path_bg << "../../../images/final_db/" << "bg_" << i << ".jpg";
 
-			//path << "C:/Users/mayay/source/repos/ARVoxelCarving/images/maya3/" << "img_" << i << ".jpg";
-			//path_bg << "C:/Users/mayay/source/repos/ARVoxelCarving/images/maya3/" << "bg_" << i << ".jpg";
 			std::string image_path = cv::samples::findFile(path.str());
 			std::string image_bg_path = cv::samples::findFile(path_bg.str());
 
@@ -251,11 +232,12 @@ int main(int argc, char* argv[]) {
 			}
 			frames[i] = resizeImg(img);
 
+			// Apply background segmentation on image
+			// This step can be improved. Optionally, images can be converted to grayscale images
 			cv::Mat silhouette;
 			cv::Ptr<cv::BackgroundSubtractor> subtractor = cv::createBackgroundSubtractorMOG2();
 			subtractor->apply(bg, silhouette);
 			subtractor->apply(img, silhouette);
-			//cvtColor(bg, silhouette, CV_BGR2GRAY);
 			
 			// Detect markers in frame
 			std::vector<int> ids;
@@ -264,23 +246,13 @@ int main(int argc, char* argv[]) {
 
 			if (!ids.empty())
 			{
-				
+				// Read camera matrix obtained by camera calibration
 				::aruco::CameraParameters cam;
-				cam.readFromXMLFile("../../../images/maya3/out_camera_data.xml");
-				//cam.readFromXMLFile("C:/Users/mayay/source/repos/ARVoxelCarving/images/maya3/out_camera_data.xml");
+				cam.readFromXMLFile("../../../images/final_db/out_camera_data.xml");
 				cv::Mat cameraMatrix = cam.CameraMatrix;
 				cv::Mat distCoeffs = cam.Distorsion;
 
-				//Uncomment to see the 3d orientations of the arUco markers
-				/*std::vector<cv::Vec3d> rvecs, tvecs;
-				cv::aruco::estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-				for (int i = 0; i < rvecs.size(); ++i)
-				{
-					auto rvec = rvecs[i];
-					auto tvec = tvecs[i];
-					cv::aruco::drawAxis(frames[i], cameraMatrix, distCoeffs, rvec, tvec, 0.1);
-				}*/
-
+				// Estimate camera pose with camera matrix and detected marker coordinates
                 auto cameraPos = findCameraPos(objectCoordMap, corners, ids, cameraMatrix, distCoeffs);
 
 				std::cout << "Camera Matrix:\n" << cameraMatrix << "\n";
@@ -295,32 +267,22 @@ int main(int argc, char* argv[]) {
 				hconcat(c.R, c.t, c.P);
 				c.K.convertTo(c.K, CV_32FC1);
 				c.P.convertTo(c.P, CV_32FC1);
+				//Calculate the projection matrix
 				c.P = c.K * c.P;
 
 				c.Silhouette = resizeImg(silhouette);
 				cameras.push_back(c);
-
-				
-				cv::aruco::drawDetectedMarkers(frames[i], corners, ids);
 			}
-			subtract_background(frames[i]);
-
 		}	
-        /* bounding box dimensions of object */
-        //Original dimensions:
-        //float xmin = -6.21639, ymin = -10.2796, zmin = -14.0349;
-        //float xmax = 7.62138, ymax = 12.1731, zmax = 12.5358;
 
+        //Define bounding box dimensions of object
 		float xStart = 0, xEnd = 60;
 		float yStart = 0, yEnd = 70;
         float zStart = 0, zEnd = 50;
 
+		// Parameters for the dimension of voxel grid
         startParams params;
-        //original:
-        //params.startX = xmin - bbwidth;
         params.startX = xStart;
-        //original:
-        //params.startY = ymin - bbheight;
         params.startY = yStart;
         params.startZ = zStart;
 
@@ -332,22 +294,25 @@ int main(int argc, char* argv[]) {
         params.voxelHeight = bbheight / VOXEL_DIM;
         params.voxelDepth = bbdepth / VOXEL_DIM;
 
-		//define voxel grid
+		// Define voxel grid
 		float* fArray = new float[VOXEL_SIZE];
 		std::fill_n(fArray, VOXEL_SIZE, 1000.0f);
 
-		/* carving model for every given camera image */
+		// Carve model for every given camera image
 		for (int i = 0; i < NUM_IMAGE; i++) {
 			std::cout << cameras.at(i).P;
 			std::cout << "\n";
 			carve(fArray, params, cameras.at(i));
 		}
-		/* show example of segmented image */
+
+		// Show example of segmented image
 		cv::Mat original, segmented;
 		original = resizeImg(cameras.at(1).Image);
 		segmented = resizeImg(cameras.at(1).Silhouette);
 		cv::imshow("Object", original);
 		cv::imshow("Silhouette", segmented);
+
+		// Render carved model
         renderModel(fArray, params);
 		cv::waitKey(0);
 		return 0;
