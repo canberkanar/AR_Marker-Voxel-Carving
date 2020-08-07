@@ -1,5 +1,8 @@
+//This class has been used to obtain the Camera Intrinsics Matrix of our capturing device.
+//It belongs to the OpenCV Examples Repository
+//https://github.com/opencv/opencv/blob/3.4/samples/cpp/tutorial_code/calib3d/camera_calibration/camera_calibration.cpp
+
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <ctime>
 #include <cstdio>
